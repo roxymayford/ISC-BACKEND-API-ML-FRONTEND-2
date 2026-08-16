@@ -1,0 +1,89 @@
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { GoogleOAuthProvider } from '@react-oauth/google';
+import { AuthProvider } from './context/AuthContext';
+import AuthLayout from './layouts/AuthLayout';
+import Login from './pages/Login';
+import Register from './pages/Register';
+import Dashboard from './pages/Dashboard';
+import Assessment from './pages/Assessment';
+import Settings from './pages/Settings';
+import Materi from './pages/Materi';
+import Notifications from './pages/Notifications';
+import Progress from './pages/Progress';
+import LatihanSoal from './pages/LatihanSoal';
+import Quiz from './pages/Quiz';
+import Pencapaian from './pages/Pencapaian';
+import MateriDetail from './pages/MateriDetail';
+import NotFound from './pages/NotFound';
+import Profile from './pages/Profile';
+import Rekomendasi from './pages/Rekomendasi';
+import CareerOnboarding from './pages/CareerOnboarding';
+import GoogleCallback from './pages/GoogleCallback';
+
+const GOOGLE_CLIENT_ID = '244826909624-055j98h4rd5m8m9ruvami0invr46muof.apps.googleusercontent.com';
+
+function App() {
+  return (
+    <GoogleOAuthProvider clientId={GOOGLE_CLIENT_ID}>
+      <AuthProvider>
+        <Router>
+          <Routes>
+            {/* Redirect root to login */}
+            <Route path="/" element={<Navigate to="/login" replace />} />
+
+            {/* Auth Routes */}
+            <Route element={<AuthLayout />}>
+              <Route path="/login"    element={<Login />} />
+              <Route path="/register" element={<Register />} />
+            </Route>
+
+            {/* Career Onboarding (post sign-up) */}
+            <Route path="/career-onboarding" element={<CareerOnboarding />} />
+
+            {/* Google OAuth Callback */}
+            <Route path="/auth/callback" element={<GoogleCallback />} />
+
+            {/* Assessment Route */}
+            <Route path="/assessment" element={<Assessment />} />
+
+            {/* Settings Route */}
+            <Route path="/settings" element={<Settings />} />
+
+            {/* Profile Route */}
+            <Route path="/profile" element={<Profile />} />
+
+            {/* Progress Route */}
+            <Route path="/progress" element={<Progress />} />
+
+            {/* Latihan Soal Route */}
+            <Route path="/latihan" element={<LatihanSoal />} />
+
+            {/* Quiz Route */}
+            <Route path="/quiz" element={<Quiz />} />
+
+            {/* Pencapaian Route */}
+            <Route path="/pencapaian" element={<Pencapaian />} />
+
+            {/* Notifications Route */}
+            <Route path="/notifications" element={<Notifications />} />
+
+            {/* Materi Route */}
+            <Route path="/materi"        element={<Materi />} />
+            <Route path="/materi/detail" element={<MateriDetail />} />
+
+            {/* Rekomendasi Karir Route */}
+            <Route path="/rekomendasi" element={<Rekomendasi />} />
+
+            {/* Dashboard Route */}
+            <Route path="/dashboard" element={<Dashboard />} />
+
+            {/* 404 Catch All Route */}
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </Router>
+      </AuthProvider>
+    </GoogleOAuthProvider>
+  );
+}
+
+export default App;
