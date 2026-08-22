@@ -7,7 +7,7 @@ import {
 } from 'lucide-react';
 import BottomSheetSelector from '../components/BottomSheetSelector';
 
-const FLASK_API = 'http://localhost:5000/api';
+const FLASK_API = import.meta.env.VITE_ML_API_URL || 'http://localhost:5000/api';
 
 const careerMeta = {
   'Data & AI':                { emoji: '🤖', color: 'from-blue-500 to-cyan-500',    bg: 'bg-blue-50',  text: 'text-blue-700',  desc: 'Menganalisis data & membangun model kecerdasan buatan' },

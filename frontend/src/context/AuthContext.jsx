@@ -3,7 +3,8 @@ import { initialDashboardData } from '../data/mockData';
 
 const AuthContext = createContext(null);
 
-const FLASK_API = 'http://localhost:5000/api';
+const FLASK_API = import.meta.env.VITE_ML_API_URL || 'http://localhost:5000/api';
+const LARAVEL_API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
 
 export const AuthProvider = ({ children }) => {
   const [user, setUser]               = useState(null);
