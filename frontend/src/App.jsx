@@ -10,6 +10,7 @@ import Settings from './pages/Settings';
 import Materi from './pages/Materi';
 import Notifications from './pages/Notifications';
 import Progress from './pages/Progress';
+import LearningPath from './pages/LearningPath';
 import LatihanSoal from './pages/LatihanSoal';
 import Quiz from './pages/Quiz';
 import Pencapaian from './pages/Pencapaian';
@@ -54,6 +55,9 @@ function App() {
 
             {/* Progress Route */}
             <Route path="/progress" element={<Progress />} />
+
+            {/* Learning Path Route */}
+            <Route path="/learning-path" element={<LearningPath />} />
 
             {/* Latihan Soal Route */}
             <Route path="/latihan" element={<LatihanSoal />} />

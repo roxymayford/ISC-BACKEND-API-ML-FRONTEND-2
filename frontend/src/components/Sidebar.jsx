@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Home, BarChart2, BookOpen, PenTool, Award, Compass, Settings, LogOut, User, ChevronUp } from 'lucide-react';
+import { Home, BarChart2, BookOpen, PenTool, Award, Compass, Settings, LogOut, User, ChevronUp, Route } from 'lucide-react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 
@@ -12,6 +12,7 @@ const Sidebar = ({ user }) => {
   const menuItems = [
     { name: 'Beranda', icon: Home, path: '/dashboard' },
     { name: 'Progress Belajar', icon: BarChart2, path: '/progress' },
+    { name: 'Learning Path', icon: Route, path: '/learning-path' },
     { name: 'Materi', icon: BookOpen, path: '/materi' },
     { name: 'Latihan Soal', icon: PenTool, path: '/latihan' },
     { name: 'Pencapaian', icon: Award, path: '/pencapaian' },
