@@ -34,6 +34,7 @@ import {
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
+import AdminLogoutModal from '../components/AdminLogoutModal';
 import { useAuth } from '../context/AuthContext';
 
 const FLASK_API = import.meta.env.VITE_ML_API_URL || 'http://localhost:5000/api';
@@ -89,6 +90,7 @@ const AdminDashboard = () => {
   const [isSubjectModalOpen, setIsSubjectModalOpen] = useState(false);
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
   const [materiToDelete, setMateriToDelete] = useState(null);
+  const [isAdminLogoutModalOpen, setIsAdminLogoutModalOpen] = useState(false);
 
   // Editing state
   const [editingMateri, setEditingMateri] = useState(null);
@@ -191,13 +193,12 @@ const AdminDashboard = () => {
     }
   };
 
-  // Handle Admin Logout
+  // Handle Admin Logout (called by AdminLogoutModal after animation)
   const handleAdminLogout = () => {
     localStorage.removeItem('adminAuth');
     setIsAdminAuthenticated(false);
     setAdminUsername('');
     setAdminPassword('');
-    navigate('/dashboard');
   };
 
   // Fetch all initial data
@@ -597,7 +598,7 @@ const AdminDashboard = () => {
             </Link>
 
             <button
-              onClick={handleAdminLogout}
+              onClick={() => setIsAdminLogoutModalOpen(true)}
               className="flex items-center gap-1.5 px-3.5 py-2.5 bg-red-50 hover:bg-red-100 text-red-600 rounded-xl font-bold text-sm transition-colors"
               title="Keluar dari mode admin"
             >
@@ -1191,6 +1192,13 @@ const AdminDashboard = () => {
           </div>
         </div>
       )}
+
+      {/* Admin Logout Modal */}
+      <AdminLogoutModal 
+        isOpen={isAdminLogoutModalOpen} 
+        onClose={() => setIsAdminLogoutModalOpen(false)} 
+        onLogout={handleAdminLogout}
+      />
 
     </div>
   );

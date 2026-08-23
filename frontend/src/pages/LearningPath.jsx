@@ -279,7 +279,7 @@ const LearningPath = () => {
     } else {
       setSteps([]);
     }
-  }, [allSubjects, selectedTrackId, completedModules]);
+  }, [allSubjects, selectedTrackId, completedModules.length]);
 
   const activeTrackMeta = CAREER_TRACKS.find(t => t.id === selectedTrackId) || CAREER_TRACKS[0];
 

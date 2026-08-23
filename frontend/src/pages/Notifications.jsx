@@ -14,7 +14,7 @@ const Notifications = () => {
   const { dashboardData: data } = useAuth();
   const [activeTab, setActiveTab] = useState('Semua');
 
-  const notificationsList = data.notifications || [];
+  const notificationsList = data?.notifications || [];
   
   // Filter notifications based on activeTab
   const filteredNotifications = notificationsList.filter(n => {

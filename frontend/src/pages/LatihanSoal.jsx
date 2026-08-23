@@ -33,10 +33,10 @@ const LatihanSoal = () => {
   const [categories, setCategories] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
 
-  const completedModules = data.completedModules || [];
-  const completedQuizzes = data.completedQuizzes || [];
+  const completedModules = data?.completedModules || [];
+  const completedQuizzes = data?.completedQuizzes || [];
   const completedQuizzesCount = completedQuizzes.length;
-  const quizXp = data.quizXp || 0;
+  const quizXp = data?.quizXp || 0;
   const avgAccuracy = completedQuizzesCount > 0 
     ? Math.min(Math.round(quizXp / (completedQuizzesCount * 10)), 100) 
     : (completedModules.length > 0 ? 85 : 0);
@@ -87,7 +87,7 @@ const LatihanSoal = () => {
     };
 
     fetchCategories();
-  }, [completedModules]);
+  }, [completedModules.length]);
 
   const filteredCategories = categories.filter(c => 
     c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 

@@ -195,6 +195,12 @@ export const AuthProvider = ({ children }) => {
         saveProgressToBackend(dashboardData, user.id);
       }, 1000);
     }
+
+    return () => {
+      if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+      }
+    };
   }, [dashboardData, user]);
 
   // ─── LOGIN (email + password) ─────────────────────────────────────────────

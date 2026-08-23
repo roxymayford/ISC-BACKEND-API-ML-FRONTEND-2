@@ -72,7 +72,7 @@ const Progress = () => {
     };
 
     fetchSubjects();
-  }, [completedModules]);
+  }, [completedModules.length]);
 
   const daysOfWeek = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
   const todayDayIdx = new Date().getDay();

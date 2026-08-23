@@ -106,7 +106,7 @@ const Dashboard = () => {
     };
 
     fetchDashboardContent();
-  }, [completedModules, user]);
+  }, [completedModules.length, user?.id]);
 
   // Real computed stats
   const streakValue = data?.stats?.find(s => s.id === 3)?.value || '1';

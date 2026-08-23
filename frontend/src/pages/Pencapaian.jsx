@@ -12,7 +12,7 @@ import { useAuth } from '../context/AuthContext';
 const Pencapaian = () => {
   const { dashboardData: data } = useAuth();
 
-  const unlockedIds = data.unlockedBadges || [];
+  const unlockedIds = data?.unlockedBadges || [];
   
   const badgeDefinitions = [
     { id: 'pemula', name: 'Pemula', icon: Star, desc: 'Mencapai Level 2', emoji: '⭐' },

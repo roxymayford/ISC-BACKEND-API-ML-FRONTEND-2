@@ -16,17 +16,21 @@ export default function BottomSheetSelector({
 
   // Handle animation states
   useEffect(() => {
+    let timeoutId;
     if (isOpen) {
       setRenderSheet(true);
       setLocalSelected([...selectedItems]);
       setSearchQuery('');
       // Small delay to ensure render happens before animation starts
-      setTimeout(() => setIsAnimating(true), 10);
+      timeoutId = setTimeout(() => setIsAnimating(true), 10);
     } else {
       setIsAnimating(false);
       // Wait for animation to finish before unmounting
-      setTimeout(() => setRenderSheet(false), 300);
+      timeoutId = setTimeout(() => setRenderSheet(false), 300);
     }
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
   }, [isOpen, selectedItems]);
 
   if (!renderSheet) return null;
