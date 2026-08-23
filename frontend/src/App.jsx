@@ -20,8 +20,9 @@ import Profile from './pages/Profile';
 import Rekomendasi from './pages/Rekomendasi';
 import CareerOnboarding from './pages/CareerOnboarding';
 import GoogleCallback from './pages/GoogleCallback';
+import AdminDashboard from './pages/AdminDashboard';
 
-const GOOGLE_CLIENT_ID = '244826909624-055j98h4rd5m8m9ruvami0invr46muof.apps.googleusercontent.com';
+const GOOGLE_CLIENT_ID = import.meta.env.VITE_GOOGLE_CLIENT_ID || '244826909624-055j98h4rd5m8m9ruvami0invr46muof.apps.googleusercontent.com';
 
 function App() {
   return (
@@ -74,6 +75,10 @@ function App() {
             {/* Materi Route */}
             <Route path="/materi"        element={<Materi />} />
             <Route path="/materi/detail" element={<MateriDetail />} />
+
+            {/* Admin Dashboard Routes */}
+            <Route path="/admin"        element={<AdminDashboard />} />
+            <Route path="/admin/materi" element={<AdminDashboard />} />
 
             {/* Rekomendasi Karir Route */}
             <Route path="/rekomendasi" element={<Rekomendasi />} />

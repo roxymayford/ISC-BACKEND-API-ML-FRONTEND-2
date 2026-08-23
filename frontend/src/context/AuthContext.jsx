@@ -95,7 +95,7 @@ export const AuthProvider = ({ children }) => {
     if (!userId || !data) return;
     
     try {
-      await fetch(`${FLASK_API}/progress/`, {
+      await fetch(`${FLASK_API}/progress/${userId}`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({
@@ -117,28 +117,30 @@ export const AuthProvider = ({ children }) => {
 
   // ─── Restore session on mount ─────────────────────────────────────────────
   useEffect(() => {
-    setIsLoading(true);
-    setTimeout(() => {
-      // Check Google user first
-      const googleUserStr = localStorage.getItem('googleUser');
-      if (googleUserStr) {
-        try {
+    const restoreSession = async () => {
+      try {
+        const googleUserStr = localStorage.getItem('googleUser');
+        if (googleUserStr) {
           const googleUser = JSON.parse(googleUserStr);
-          setUser({ name: googleUser.name, email: googleUser.email, avatar: googleUser.avatar, id: googleUser.id, isGoogle: true });
+          setUser({ 
+            name: googleUser.name, 
+            email: googleUser.email, 
+            avatar: googleUser.avatar, 
+            id: googleUser.id, 
+            isGoogle: true 
+          });
           
-          // Initialize with user data
           const newData        = JSON.parse(JSON.stringify(initialDashboardData));
           newData.user.name    = googleUser.name;
           newData.user.email   = googleUser.email;
           newData.user.avatar  = googleUser.avatar;
           
-          // Fetch progress from backend if user has ID
           if (googleUser.id) {
-            fetch(`${FLASK_API}/progress/`)
-              .then(res => res.json())
-              .then(result => {
+            try {
+              const res = await fetch(`${FLASK_API}/progress/${googleUser.id}`);
+              if (res.ok) {
+                const result = await res.json();
                 if (result.progress) {
-                  // Merge backend progress with local data
                   const backendProgress = result.progress;
                   newData.completedModules = backendProgress.completedModules || [];
                   newData.completedQuizzes = backendProgress.completedQuizzes || [];
@@ -150,47 +152,48 @@ export const AuthProvider = ({ children }) => {
                   newData.stats            = backendProgress.stats || newData.stats;
                   newData.notifications    = backendProgress.notifications || [];
                 }
-                handleSetDashboardData(newData);
-              })
-              .catch(() => {
-                handleSetDashboardData(newData);
-              });
-          } else {
-            handleSetDashboardData(newData);
+              }
+            } catch (fetchErr) {
+              console.warn('Could not fetch backend progress, using cached data:', fetchErr);
+            }
           }
+          handleSetDashboardData(newData);
           setIsLoading(false);
           return;
-        } catch (_) {}
-      }
+        }
 
-      // Fallback: email/password user
-      const loggedInUserEmail = localStorage.getItem('currentUser');
-      if (loggedInUserEmail) {
-        const accounts  = JSON.parse(localStorage.getItem('accounts') || '[]');
-        const foundUser = accounts.find(acc => acc.email === loggedInUserEmail);
-        if (foundUser) {
-          setUser({ name: foundUser.name, email: foundUser.email });
-          if (foundUser.data) {
-            handleSetDashboardData(foundUser.data);
-          } else {
-            const newData     = JSON.parse(JSON.stringify(initialDashboardData));
-            newData.user.name = foundUser.name;
-            handleSetDashboardData(newData);
+        // Email / Password user restore
+        const loggedInUserEmail = localStorage.getItem('currentUser');
+        if (loggedInUserEmail) {
+          const accounts  = JSON.parse(localStorage.getItem('accounts') || '[]');
+          const foundUser = accounts.find(acc => acc.email === loggedInUserEmail);
+          if (foundUser) {
+            setUser({ name: foundUser.name, email: foundUser.email });
+            if (foundUser.data) {
+              handleSetDashboardData(foundUser.data);
+            } else {
+              const newData     = JSON.parse(JSON.stringify(initialDashboardData));
+              newData.user.name = foundUser.name;
+              handleSetDashboardData(newData);
+            }
           }
         }
+      } catch (err) {
+        console.error('Session restore error:', err);
+      } finally {
+        setIsLoading(false);
       }
-      setIsLoading(false);
-    }, 1200);
+    };
+
+    restoreSession();
   }, []);
 
   // ─── Auto-save dashboardData for Google users (debounced) ──────────────────
   useEffect(() => {
     if (user && user.isGoogle && user.id && dashboardData) {
-      // Clear previous timeout
       if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
       }
-      // Debounce: wait 1 second before saving
       saveTimeoutRef.current = setTimeout(() => {
         saveProgressToBackend(dashboardData, user.id);
       }, 1000);
@@ -230,9 +233,10 @@ export const AuthProvider = ({ children }) => {
     return false;
   };
 
-  // ─── LOGIN WITH GOOGLE ────────────────────────────────────────────────────
+  // ─── LOGIN WITH GOOGLE (ID Token Credential) ──────────────────────────────
   const loginWithGoogle = async (credential) => {
     try {
+      setIsLoading(true);
       const response = await fetch(`${FLASK_API}/auth/google`, {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -249,6 +253,7 @@ export const AuthProvider = ({ children }) => {
 
       // Persist Google session
       localStorage.setItem('googleUser', JSON.stringify(googleUser));
+      localStorage.setItem('user_id', String(googleUser.id));
       localStorage.removeItem('currentUser');
 
       setUser({
@@ -264,7 +269,6 @@ export const AuthProvider = ({ children }) => {
       newData.user.email    = googleUser.email;
       newData.user.avatar   = googleUser.avatar;
       
-      // Merge backend progress if available
       if (progress) {
         newData.completedModules = progress.completedModules || [];
         newData.completedQuizzes = progress.completedQuizzes || [];
@@ -278,6 +282,7 @@ export const AuthProvider = ({ children }) => {
       }
 
       handleSetDashboardData(newData);
+      setIsLoading(false);
 
       return {
         success:            true,
@@ -287,6 +292,74 @@ export const AuthProvider = ({ children }) => {
       };
     } catch (err) {
       console.error('Google login error:', err);
+      setIsLoading(false);
+      return { success: false, error: err.message };
+    }
+  };
+
+  // ─── LOGIN WITH GOOGLE TOKEN (Access Token + User Info) ───────────────────
+  const loginWithGoogleToken = async (accessToken, userInfo) => {
+    try {
+      setIsLoading(true);
+      const response = await fetch(`${FLASK_API}/auth/google-token`, {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({
+          access_token: accessToken,
+          user_info:    userInfo,
+        }),
+      });
+
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || 'Google authentication failed');
+      }
+
+      const result = await response.json();
+      const { user: googleUser, is_new_user, has_recommendation, progress } = result;
+
+      // Persist Google session
+      localStorage.setItem('googleUser', JSON.stringify(googleUser));
+      localStorage.setItem('user_id', String(googleUser.id));
+      localStorage.removeItem('currentUser');
+
+      setUser({
+        id:       googleUser.id,
+        name:     googleUser.name,
+        email:    googleUser.email,
+        avatar:   googleUser.avatar,
+        isGoogle: true,
+      });
+
+      const newData         = JSON.parse(JSON.stringify(initialDashboardData));
+      newData.user.name     = googleUser.name;
+      newData.user.email    = googleUser.email;
+      newData.user.avatar   = googleUser.avatar;
+      
+      if (progress) {
+        newData.completedModules = progress.completedModules || [];
+        newData.completedQuizzes = progress.completedQuizzes || [];
+        newData.quizXp           = progress.quizXp || 0;
+        newData.dailyTarget      = progress.dailyTarget || { targetMinutes: 60, currentMinutes: 0 };
+        newData.preferences      = progress.preferences || {};
+        newData.unlockedBadges   = progress.unlockedBadges || [];
+        newData.lastLoginDate    = progress.lastLoginDate || null;
+        newData.stats            = progress.stats || newData.stats;
+        newData.notifications    = progress.notifications || [];
+      }
+
+      handleSetDashboardData(newData);
+      setIsLoading(false);
+
+      return {
+        success:            true,
+        is_new_user,
+        has_recommendation,
+        user_id:            googleUser.id,
+      };
+    } catch (err) {
+      console.error('Google token login error:', err);
+      setIsLoading(false);
       return { success: false, error: err.message };
     }
   };
@@ -326,7 +399,6 @@ export const AuthProvider = ({ children }) => {
       }
     }
     
-    // Also save to backend for Google users before logout
     if (user && user.isGoogle && user.id && dashboardData) {
       saveProgressToBackend(dashboardData, user.id);
     }
@@ -334,6 +406,7 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem('currentUser');
     localStorage.removeItem('googleUser');
     localStorage.removeItem('user_id');
+    localStorage.removeItem('auth_token');
     setUser(null);
     setDashboardData(initialDashboardData);
   };
@@ -343,6 +416,7 @@ export const AuthProvider = ({ children }) => {
       user,
       login,
       loginWithGoogle,
+      loginWithGoogleToken,
       register,
       logout,
       dashboardData,

@@ -21,27 +21,27 @@ const Sidebar = ({ user }) => {
   ];
 
   return (
-    <aside className="w-64 bg-white h-screen flex flex-col shadow-sm rounded-r-3xl sticky top-0 overflow-y-auto hidden md:flex">
+    <aside className="w-64 bg-white h-screen flex flex-col shadow-sm rounded-r-3xl sticky top-0 overflow-y-auto hidden md:flex font-sans">
       <div className="p-6">
-        <div className="flex items-center mb-10">
+        <div className="flex items-center mb-8">
           <span className="text-2xl font-black bg-clip-text text-transparent bg-gradient-to-r from-primary-dark to-primary-light">Project ISC</span>
         </div>
 
-        <nav className="space-y-2">
+        <nav className="space-y-1.5">
           {menuItems.map((item) => {
             const isActive = currentPath === item.path;
             return (
               <Link
                 key={item.name}
                 to={item.path}
-                className={`flex items-center gap-4 px-4 py-3 rounded-xl transition-colors duration-200 font-medium ${
+                className={`flex items-center gap-3.5 px-4 py-2.5 rounded-xl transition-all duration-200 font-semibold text-sm ${
                   isActive
-                    ? 'bg-primary-light/10 text-primary-dark'
+                    ? 'bg-primary-light/10 text-primary-dark shadow-sm'
                     : 'text-gray-500 hover:bg-gray-50 hover:text-gray-900'
                 }`}
               >
-                <item.icon size={20} className={isActive ? 'text-primary' : 'text-gray-400'} />
-                {item.name}
+                <item.icon size={19} className={isActive ? 'text-primary' : 'text-gray-400'} />
+                <span>{item.name}</span>
               </Link>
             );
           })}
@@ -51,10 +51,10 @@ const Sidebar = ({ user }) => {
       <div className="mt-auto p-4 border-t border-gray-100 relative">
         {/* Popover Menu */}
         {isProfileMenuOpen && (
-          <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-gray-100 shadow-xl rounded-xl py-2 z-50 overflow-hidden transform transition-all">
+          <div className="absolute bottom-full left-4 right-4 mb-2 bg-white border border-gray-100 shadow-xl rounded-2xl py-2 z-50 overflow-hidden transform transition-all">
             <Link 
               to="/profile" 
-              className="flex items-center gap-3 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
+              className="flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-gray-700 hover:bg-gray-50 hover:text-primary transition-colors"
               onClick={() => setIsProfileMenuOpen(false)}
             >
               <User size={16} />
@@ -67,7 +67,7 @@ const Sidebar = ({ user }) => {
                   window.location.href = '/login';
                 }
               }}
-              className="w-full flex items-center gap-3 px-4 py-3 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors"
+              className="w-full flex items-center gap-3 px-4 py-2.5 text-sm font-semibold text-red-500 hover:bg-red-50 transition-colors"
             >
               <LogOut size={16} />
               Keluar
@@ -82,15 +82,15 @@ const Sidebar = ({ user }) => {
         >
           <div className="flex items-center gap-3">
             {user?.avatar ? (
-              <img src={user.avatar} alt="User Avatar" className="w-10 h-10 rounded-full object-cover shadow-sm" />
+              <img src={user.avatar} alt="User Avatar" className="w-9 h-9 rounded-full object-cover shadow-sm" />
             ) : (
-              <div className="w-10 h-10 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500 shadow-sm">
+              <div className="w-9 h-9 rounded-full bg-gray-200 flex items-center justify-center font-bold text-gray-500 shadow-sm text-sm">
                 {user?.name?.charAt(0) || 'U'}
               </div>
             )}
-            <span className="font-semibold text-gray-800 text-sm max-w-[80px] truncate">{user?.name || 'User'}</span>
+            <span className="font-semibold text-gray-800 text-sm max-w-[85px] truncate">{user?.name || 'User'}</span>
           </div>
-          <ChevronUp size={20} className={`text-gray-400 group-hover:text-primary transition-transform duration-300 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
+          <ChevronUp size={18} className={`text-gray-400 group-hover:text-primary transition-transform duration-300 ${isProfileMenuOpen ? 'rotate-180' : ''}`} />
         </div>
       </div>
     </aside>
