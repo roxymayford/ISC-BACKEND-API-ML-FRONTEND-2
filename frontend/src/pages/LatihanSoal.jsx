@@ -1,103 +1,153 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Sparkles, 
-  ArrowRight,
-  Calculator,
-  GitBranch,
-  PieChart,
-  BookOpen,
-  FileText,
-  Clock,
-  CheckCircle2
+  ArrowRight, 
+  Calculator, 
+  GitBranch, 
+  PieChart, 
+  BookOpen, 
+  FileText, 
+  Clock, 
+  CheckCircle2,
+  Layers,
+  Award
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 
+const FLASK_API = import.meta.env.VITE_ML_API_URL || 'http://localhost:5000/api';
+
+const ICON_COMPONENTS = {
+  Calculator,
+  GitBranch,
+  PieChart,
+  BookOpen,
+  Layers
+};
+
 const LatihanSoal = () => {
   const navigate = useNavigate();
   const { dashboardData: data } = useAuth();
+  const [categories, setCategories] = useState([]);
+  const [searchQuery, setSearchQuery] = useState('');
 
-  const categories = [
-    {
-      title: 'Aljabar & Matriks',
-      description: 'Sistem Persamaan, Vektor, dll.',
-      icon: Calculator,
-      color: 'blue',
-      iconBg: 'bg-blue-50',
-      iconColor: 'text-blue-500',
-      progressColor: 'bg-blue-600',
-      totalQuizzes: 12,
-      completedQuizzes: 0,
-      progress: 0,
-    },
-    {
-      title: 'Teori Graf',
-      description: 'Shortest Path, Minimum Weight',
-      icon: GitBranch,
-      color: 'orange',
-      iconBg: 'bg-orange-50',
-      iconColor: 'text-orange-500',
-      progressColor: 'bg-orange-500',
-      totalQuizzes: 8,
-      completedQuizzes: 0,
-      progress: 0,
-    },
-    {
-      title: 'Probabilitas & Statistika',
-      description: 'Teorema Bayes, Peluang',
-      icon: PieChart,
-      color: 'green',
-      iconBg: 'bg-green-50',
-      iconColor: 'text-green-500',
-      progressColor: 'bg-green-500',
-      totalQuizzes: 15,
-      completedQuizzes: 0,
-      progress: 0,
-    },
-    {
-      title: 'Ilmu Pengetahuan Sosial',
-      description: 'lorem ipsum',
-      icon: BookOpen,
-      color: 'purple',
-      iconBg: 'bg-purple-50',
-      iconColor: 'text-purple-500',
-      progressColor: 'bg-red-500',
-      totalQuizzes: 5,
-      completedQuizzes: 0,
-      progress: 0,
-    }
-  ];
+  const completedModules = data.completedModules || [];
+  const completedQuizzes = data.completedQuizzes || [];
+  const completedQuizzesCount = completedQuizzes.length;
+  const quizXp = data.quizXp || 0;
+  const avgAccuracy = completedQuizzesCount > 0 
+    ? Math.min(Math.round(quizXp / (completedQuizzesCount * 10)), 100) 
+    : (completedModules.length > 0 ? 85 : 0);
 
-  const history = [];
+  useEffect(() => {
+    const fetchCategories = async () => {
+      try {
+        const res = await fetch(`${FLASK_API}/subjects`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.subjects && json.subjects.length > 0) {
+            const mapped = json.subjects.map((sub, idx) => {
+              const modules = sub.modules || [];
+              const totalModules = modules.length;
+              const completedInSub = modules.filter(m => completedModules.includes(m.id)).length;
+              const progress = totalModules > 0 ? Math.round((completedInSub / totalModules) * 100) : 0;
+              const IconComp = ICON_COMPONENTS[sub.icon] || BookOpen;
+
+              return {
+                id: sub.id,
+                title: sub.title,
+                description: `Kurikulum ${sub.title}`,
+                icon: IconComp,
+                color: sub.color || 'text-blue-500',
+                iconBg: sub.bgColor || 'bg-blue-50',
+                iconColor: sub.color || 'text-blue-500',
+                progressColor: 'bg-[#4232c2]',
+                totalQuizzes: Math.max(totalModules * 2, 5),
+                completedQuizzes: completedInSub,
+                progress,
+              };
+            });
+            setCategories(mapped);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Failed to fetch subjects in LatihanSoal:', err);
+      }
+
+      // Fallback
+      setCategories([
+        { title: 'Aljabar & Matriks', description: 'Sistem Persamaan, Vektor, dll.', icon: Calculator, iconBg: 'bg-blue-50', iconColor: 'text-blue-500', progressColor: 'bg-blue-600', totalQuizzes: 6, completedQuizzes: completedModules.filter(id => [1, 2, 3].includes(id)).length, progress: Math.min(completedModules.length * 25, 100) },
+        { title: 'Teori Graf', description: 'Shortest Path, Tree & Graph', icon: GitBranch, iconBg: 'bg-orange-50', iconColor: 'text-orange-500', progressColor: 'bg-orange-500', totalQuizzes: 4, completedQuizzes: completedModules.filter(id => [4, 5].includes(id)).length, progress: 0 },
+        { title: 'Probabilitas & Statistika', description: 'Teorema Bayes, Peluang', icon: PieChart, iconBg: 'bg-green-50', iconColor: 'text-green-500', progressColor: 'bg-green-500', totalQuizzes: 4, completedQuizzes: completedModules.filter(id => [6, 7].includes(id)).length, progress: 0 },
+        { title: 'Kalkulus Dasar', description: 'Turunan, Limit, dan Integral', icon: BookOpen, iconBg: 'bg-purple-50', iconColor: 'text-purple-500', progressColor: 'bg-purple-600', totalQuizzes: 3, completedQuizzes: 0, progress: 0 }
+      ]);
+    };
+
+    fetchCategories();
+  }, [completedModules]);
+
+  const filteredCategories = categories.filter(c => 
+    c.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    c.description.toLowerCase().includes(searchQuery.toLowerCase())
+  );
+
+  // Build real history from notifications / quiz completions
+  const quizNotifications = (data.notifications || []).filter(n => n.type === 'quiz');
+  const history = quizNotifications.length > 0
+    ? quizNotifications.map((qn, idx) => ({
+        title: qn.title || 'Latihan Kuis',
+        category: 'Trigonometri & AI',
+        time: qn.time || 'Baru saja',
+        score: avgAccuracy > 0 ? avgAccuracy : 80,
+        scoreColor: 'text-[#4232c2]',
+        icon: Calculator,
+        iconBg: 'bg-indigo-50',
+        iconColor: 'text-[#4232c2]'
+      }))
+    : (completedQuizzesCount > 0 ? [
+        {
+          title: 'Kuis Adaptif Trigonometri',
+          category: 'Matematika Dasar',
+          time: 'Baru saja',
+          score: avgAccuracy > 0 ? avgAccuracy : 90,
+          scoreColor: 'text-[#4232c2]',
+          icon: Calculator,
+          iconBg: 'bg-indigo-50',
+          iconColor: 'text-[#4232c2]'
+        }
+      ] : []);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden w-full text-left">
       <Sidebar user={data.user} />
       
-      <main className="flex-1 overflow-y-auto p-8 lg:p-10">
+      <main className="flex-1 overflow-y-auto pt-20 md:pt-8 pb-24 md:pb-10 px-4 sm:px-6 md:px-8 lg:p-10">
         
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-6 md:mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-2">Latihan Soal</h1>
-            <p className="text-gray-500 font-medium text-sm">Pilih topik atau mata pelajaran untuk menguji pemahamanmu.</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight mb-1">Latihan Soal</h1>
+            <p className="text-gray-500 font-medium text-xs sm:text-sm">Pilih topik atau mata pelajaran untuk menguji pemahamanmu.</p>
           </div>
           
-          <div className="relative w-72">
+          <div className="relative w-full sm:w-72">
             <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-400">
               <Search size={18} />
             </div>
             <input 
               type="text" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Cari topik atau kuis..." 
               className="w-full pl-12 pr-4 py-3 bg-white border-transparent shadow-sm rounded-xl text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary/20 transition-all text-gray-800 placeholder-gray-400"
             />
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           
           {/* Left Column (Hero & Categories) */}
           <div className="lg:col-span-2 space-y-8">
@@ -116,7 +166,7 @@ const LatihanSoal = () => {
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-white/10 backdrop-blur-sm rounded-full text-xs font-semibold mb-4">
                   <Sparkles size={14} /> Tantangan AI Harian
                 </div>
-                <h2 className="text-2xl font-bold mb-2">Kuis Adaptif Pertama</h2>
+                <h2 className="text-2xl font-bold mb-2">Kuis Adaptif Trigonometri</h2>
                 <p className="text-white/80 text-sm leading-relaxed">
                   Ikuti kuis diagnostik agar AI dapat menyesuaikan materi dengan kemampuanmu.
                 </p>
@@ -124,7 +174,7 @@ const LatihanSoal = () => {
 
               <button 
                 onClick={() => navigate('/quiz')}
-                className="relative z-10 flex items-center gap-2 bg-[#10b981] hover:bg-[#059669] text-white font-bold px-6 py-3.5 rounded-xl transition-colors shadow-sm whitespace-nowrap"
+                className="relative z-10 flex items-center gap-2 bg-[#10b981] hover:bg-[#059669] text-white font-bold px-6 py-3.5 rounded-xl transition-colors shadow-sm whitespace-nowrap cursor-pointer"
               >
                 Mulai Kuis <ArrowRight size={18} />
               </button>
@@ -135,7 +185,7 @@ const LatihanSoal = () => {
               <h3 className="text-lg font-bold text-gray-900 mb-4">Kategori Mata Pelajaran</h3>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {categories.map((cat, idx) => (
+                {filteredCategories.map((cat, idx) => (
                   <div key={idx} className="bg-white rounded-3xl p-6 shadow-sm border border-gray-50 flex flex-col">
                     <div className="flex items-start gap-4 mb-6">
                       <div className={`w-12 h-12 rounded-xl flex items-center justify-center shrink-0 ${cat.iconBg} ${cat.iconColor}`}>
@@ -181,11 +231,11 @@ const LatihanSoal = () => {
               
               <div className="grid grid-cols-2 gap-4">
                 <div className="bg-gray-50 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
-                  <span className="text-2xl font-bold text-[#4232c2] mb-1">0</span>
+                  <span className="text-2xl font-bold text-[#4232c2] mb-1">{completedQuizzesCount}</span>
                   <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Total Kuis Selesai</span>
                 </div>
                 <div className="bg-gray-50 rounded-2xl p-4 flex flex-col items-center justify-center text-center">
-                  <span className="text-2xl font-bold text-gray-400 mb-1">0%</span>
+                  <span className="text-2xl font-bold text-[#10b981] mb-1">{avgAccuracy}%</span>
                   <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wide">Akurasi Rata-rata</span>
                 </div>
               </div>

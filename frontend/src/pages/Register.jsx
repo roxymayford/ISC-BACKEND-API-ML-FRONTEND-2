@@ -22,6 +22,7 @@ const Register = () => {
   const [passwordError, setPasswordError]     = useState('');
   const [error, setError]                     = useState('');
   const [googleLoading, setGoogleLoading]     = useState(false);
+  const [isSubmitting, setIsSubmitting]       = useState(false);
 
   // ─── Email / Password Register ───────────────────────────────────────────
   const handleRegister = async (e) => {
@@ -50,31 +51,14 @@ const Register = () => {
     }
     if (hasError) return;
 
-    try {
-      const response = await fetch(`${LARAVEL_API}/register`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body:    JSON.stringify({ name: username, email, password }),
-      });
+    setIsSubmitting(true);
+    const result = await register(username, email, password);
+    setIsSubmitting(false);
 
-      const result = await response.json();
-
-      if (response.ok) {
-        if (result.user?.id) localStorage.setItem('user_id', result.user.id);
-        login(email, password);
-        navigate('/career-onboarding');
-      } else {
-        setError(result.message || 'Email sudah terdaftar atau registrasi gagal');
-      }
-    } catch (_) {
-      // Fallback: local register
-      const ok = register(username, email, password);
-      if (ok) {
-        login(email, password);
-        navigate('/career-onboarding');
-      } else {
-        setError('Email sudah terdaftar');
-      }
+    if (result && result.success) {
+      navigate('/career-onboarding');
+    } else {
+      setError(result?.error || 'Email sudah terdaftar atau registrasi gagal.');
     }
   };
 

@@ -4,24 +4,25 @@ import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 
 const Profile = () => {
-  const { user: authUser, dashboardData: data, setDashboardData } = useAuth();
+  const { user: authUser, dashboardData: data, setDashboardData, updateUserProfile } = useAuth();
   
   const [profile, setProfile] = useState({
     name: data.user?.name || authUser?.name || '',
     email: authUser?.email || '',
-    grade: data.user?.grade || 'SMA Kelas 10',
-    avatar: data.user?.avatar || ''
+    grade: data.user?.grade || authUser?.grade || 'SMA Kelas 10',
+    avatar: data.user?.avatar || authUser?.avatar || ''
   });
 
   const [showSaveMessage, setShowSaveMessage] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     setProfile(prev => ({
       ...prev,
       name: data.user?.name || authUser?.name || '',
       email: authUser?.email || '',
-      grade: data.user?.grade || 'SMA Kelas 10',
-      avatar: data.user?.avatar || ''
+      grade: data.user?.grade || authUser?.grade || 'SMA Kelas 10',
+      avatar: data.user?.avatar || authUser?.avatar || ''
     }));
   }, [data, authUser]);
 
@@ -41,16 +42,24 @@ const Profile = () => {
     }
   };
 
-  const saveProfile = () => {
-    const newData = JSON.parse(JSON.stringify(data));
-    
-    if (!newData.user) newData.user = {};
-    newData.user.name = profile.name;
-    newData.user.grade = profile.grade;
-    newData.user.avatar = profile.avatar;
+  const saveProfile = async () => {
+    setIsSaving(true);
+    if (updateUserProfile) {
+      await updateUserProfile({
+        name: profile.name,
+        grade: profile.grade,
+        avatar: profile.avatar
+      });
+    } else {
+      const newData = JSON.parse(JSON.stringify(data));
+      if (!newData.user) newData.user = {};
+      newData.user.name = profile.name;
+      newData.user.grade = profile.grade;
+      newData.user.avatar = profile.avatar;
+      setDashboardData(newData);
+    }
 
-    setDashboardData(newData);
-    
+    setIsSaving(false);
     setShowSaveMessage(true);
     setTimeout(() => {
       setShowSaveMessage(false);
@@ -61,7 +70,7 @@ const Profile = () => {
     <div className="flex h-screen bg-background overflow-hidden w-full text-left">
       <Sidebar user={data.user || authUser} />
       
-      <main className="flex-1 overflow-y-auto p-8 lg:p-10 relative flex flex-col items-center justify-center">
+      <main className="flex-1 overflow-y-auto pt-20 md:pt-8 pb-24 md:pb-10 px-4 sm:px-6 md:px-8 lg:p-10 relative flex flex-col items-center justify-start md:justify-center">
         {/* Floating Success Notification */}
         <div className={`absolute top-8 left-1/2 transform -translate-x-1/2 z-50 transition-all duration-300 ${
           showSaveMessage ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-4 pointer-events-none'

@@ -8,7 +8,7 @@ const LARAVEL_API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/
 
 const Login = () => {
   const navigate = useNavigate();
-  const { login: localLogin, loginWithGoogleToken } = useAuth();
+  const { login, loginWithGoogleToken } = useAuth();
 
   const [email, setEmail]                 = useState('');
   const [password, setPassword]           = useState('');
@@ -17,6 +17,7 @@ const Login = () => {
   const [emailError, setEmailError]       = useState('');
   const [passwordError, setPasswordError] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [isSubmitting, setIsSubmitting]   = useState(false);
 
   const timeoutRef = useRef(null);
 
@@ -45,30 +46,18 @@ const Login = () => {
     }
     if (hasError) return;
 
-    try {
-      const response = await fetch(`${LARAVEL_API}/login`, {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body:    JSON.stringify({ email, password }),
-      });
+    setIsSubmitting(true);
+    const result = await login(email, password);
+    setIsSubmitting(false);
 
-      const result = await response.json();
-
-      if (response.ok) {
-        if (result.user?.id) localStorage.setItem('user_id', result.user.id);
-        localLogin(email, password);
-        navigate('/dashboard');
+    if (result && result.success) {
+      if (result.is_new_user || !result.has_recommendation) {
+        navigate('/career-onboarding');
       } else {
-        setError(result.message || 'Kombinasi email dan password salah');
-      }
-    } catch (_) {
-      // Fallback: try local auth
-      const ok = localLogin(email, password);
-      if (ok) {
         navigate('/dashboard');
-      } else {
-        setError('Email atau password salah');
       }
+    } else {
+      setError(result?.error || 'Kombinasi email dan kata sandi salah.');
     }
   };
 

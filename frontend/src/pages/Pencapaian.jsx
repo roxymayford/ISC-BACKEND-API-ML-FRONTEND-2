@@ -15,21 +15,21 @@ const Pencapaian = () => {
   const unlockedIds = data.unlockedBadges || [];
   
   const badgeDefinitions = [
-    { id: 'pemula', name: 'Pemula', icon: Star },
-    { id: 'rajin', name: 'Pelajar Rajin', icon: Book },
-    { id: 'ahli', name: 'Ahli Materi', icon: Flame },
-    { id: 'jenius', name: 'Si Jenius', icon: Brain },
-    { id: 'konsisten', name: 'Konsisten', icon: Flame },
-    { id: 'master', name: 'Master Kuis', icon: Star },
-    { id: 'kutu', name: 'Kutu Buku', icon: Book },
-    { id: 'legenda', name: 'Legenda', icon: Brain },
+    { id: 'pemula', name: 'Pemula', icon: Star, desc: 'Mencapai Level 2', emoji: '⭐' },
+    { id: 'rajin', name: 'Pelajar Rajin', icon: Book, desc: 'Menyelesaikan modul pertama', emoji: '📚' },
+    { id: 'ahli', name: 'Ahli Materi', icon: Flame, desc: 'Menyelesaikan 3 materi', emoji: '🔥' },
+    { id: 'jenius', name: 'Si Jenius', icon: Brain, desc: 'Menyelesaikan kuis pertama', emoji: '💡' },
+    { id: 'konsisten', name: 'Konsisten', icon: Flame, desc: '3 hari belajar beruntun', emoji: '⚡' },
+    { id: 'master', name: 'Master Kuis', icon: Star, desc: 'Menyelesaikan 3 kuis adaptif', emoji: '🎯' },
+    { id: 'kutu', name: 'Kutu Buku', icon: Book, desc: 'Mencapai Level 5', emoji: '📖' },
+    { id: 'legenda', name: 'Legenda', icon: Brain, desc: 'Mengumpulkan 1000+ XP', emoji: '👑' },
   ];
 
   const allBadges = badgeDefinitions.map(b => {
     if (unlockedIds.includes(b.id)) {
-      return { name: b.name, icon: b.icon, locked: false };
+      return { name: b.name, icon: b.icon, locked: false, desc: b.desc };
     }
-    return { name: 'Terkunci', icon: Lock, locked: true };
+    return { name: 'Terkunci', icon: Lock, locked: true, desc: b.desc };
   });
 
   const unlockedCount = unlockedIds.length;
@@ -39,40 +39,52 @@ const Pencapaian = () => {
   const quizXp = data.quizXp || 0;
   const totalXp = (completedModulesCount * 50) + quizXp;
   const currentLevel = Math.floor(totalXp / 100) + 1;
-  const levelProgress = totalXp % 100; // Assuming 100 XP per level
+  const levelProgress = totalXp % 100;
+
+  const streakCount = data.stats?.find(s => s.id === 3)?.value || "1";
+  const avgScore = completedQuizzesCount > 0 
+    ? Math.min(Math.round(quizXp / (completedQuizzesCount * 10)), 100) 
+    : (completedModulesCount > 0 ? 85 : 0);
 
   const stats = [
     { label: 'Materi Selesai', value: `${completedModulesCount}` },
-    { label: 'Quiz', value: `${completedQuizzesCount}` },
-    { label: 'Streak', value: '0 Hari' },
-    { label: 'Nilai Rata-rata', value: '0%' },
+    { label: 'Quiz Selesai', value: `${completedQuizzesCount}` },
+    { label: 'Streak', value: `${streakCount} Hari` },
+    { label: 'Nilai Rata-rata', value: `${avgScore}%` },
   ];
 
-  const timelineItems = [
-    { text: 'Belum ada pencapaian. Ayo mulai belajar!', emoji: '🌱' },
-  ];
+  const unlockedBadgeObjects = badgeDefinitions.filter(b => unlockedIds.includes(b.id));
+
+  const timelineItems = unlockedBadgeObjects.length > 0 
+    ? unlockedBadgeObjects.map(b => ({
+        text: `Membuka badge "${b.name}" (${b.desc})`,
+        emoji: b.emoji
+      }))
+    : (completedModulesCount > 0 
+        ? [{ text: `Menyelesaikan ${completedModulesCount} materi belajar. Terus tingkatkan!`, emoji: '🚀' }]
+        : [{ text: 'Belum ada pencapaian. Ayo selesaikan materi pertamamu!', emoji: '🌱' }]);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden w-full text-left">
       <Sidebar user={data.user} />
       
-      <main className="flex-1 overflow-y-auto p-8 lg:p-10">
+      <main className="flex-1 overflow-y-auto pt-20 md:pt-8 pb-24 md:pb-10 px-4 sm:px-6 md:px-8 lg:p-10">
         
         {/* Top Hero Banner */}
-        <div className="bg-[#6366f1] rounded-3xl p-8 text-white relative mb-8 shadow-sm flex flex-col justify-between overflow-hidden min-h-[160px]">
+        <div className="bg-[#6366f1] rounded-3xl p-6 md:p-8 text-white relative mb-6 md:mb-8 shadow-sm flex flex-col justify-between overflow-hidden min-h-[140px] md:min-h-[160px]">
           {/* Decorative Background */}
           <div className="absolute right-0 top-0 opacity-10 pointer-events-none transform translate-x-1/4 -translate-y-1/4">
-             <Star size={240} fill="currentColor" strokeWidth={0} />
+             <Star size={200} fill="currentColor" strokeWidth={0} />
           </div>
 
-          <div className="flex justify-between items-start relative z-10 mb-8">
+          <div className="flex justify-between items-start relative z-10 mb-6 md:mb-8">
             <div>
-              <h1 className="text-3xl font-bold mb-1">Pencapaian</h1>
-              <p className="text-white/80 text-sm font-medium">Kamu telah membuka {unlockedCount} dari 8 badge.</p>
+              <h1 className="text-2xl sm:text-3xl font-bold mb-1">Pencapaian</h1>
+              <p className="text-white/80 text-xs sm:text-sm font-medium">Kamu telah membuka {unlockedCount} dari 8 badge.</p>
             </div>
             <div className="text-right">
-              <h2 className="text-2xl font-bold">Level {currentLevel}</h2>
-              <p className="text-white/80 text-sm font-medium">{totalXp} XP</p>
+              <h2 className="text-xl sm:text-2xl font-bold">Level {currentLevel}</h2>
+              <p className="text-white/80 text-xs sm:text-sm font-medium">{totalXp} XP</p>
             </div>
           </div>
           
@@ -83,7 +95,7 @@ const Pencapaian = () => {
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 md:gap-8">
           
           {/* Left Column (Badges) */}
           <div className="lg:col-span-2">

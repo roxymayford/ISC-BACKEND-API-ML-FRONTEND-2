@@ -143,7 +143,7 @@ const MateriDetail = () => {
     <div className="flex h-screen bg-background overflow-hidden w-full text-left font-sans">
       <Sidebar user={data?.user} />
       
-      <main className="flex-1 overflow-y-auto p-8 lg:p-10">
+      <main className="flex-1 overflow-y-auto pt-20 md:pt-8 pb-24 md:pb-10 px-4 sm:px-6 md:px-8 lg:p-10">
         
         {/* Header */}
         <header className="flex justify-between items-center mb-8">
@@ -155,9 +155,16 @@ const MateriDetail = () => {
               <ChevronLeft size={24} />
             </button>
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">{materi?.title || 'Memuat materi...'}</h1>
+              <div className="flex items-center gap-2 flex-wrap mb-1">
+                <h1 className="text-2xl font-bold text-gray-900">{materi?.title || 'Memuat materi...'}</h1>
+                {(materi?.careers || ['Semua Karir']).map((c, i) => (
+                  <span key={i} className="px-2.5 py-0.5 bg-indigo-50 text-indigo-700 border border-indigo-100 rounded-full text-xs font-bold">
+                    {c}
+                  </span>
+                ))}
+              </div>
               <p className="text-gray-500 text-sm font-medium">
-                {materi?.subjectTitle || 'Modul Pembelajaran'} • {materi?.duration || '15:00'}
+                {materi?.subjectTitle || 'Modul Pembelajaran'} • {materi?.duration || '15:00'} • {materi?.type || 'Video'}
               </p>
             </div>
           </div>

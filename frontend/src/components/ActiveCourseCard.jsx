@@ -29,7 +29,7 @@ const ActiveCourseCard = ({ course }) => {
             <div className="bg-white h-1.5 rounded-full" style={{ width: `${course.progress}%` }}></div>
           </div>
           
-          <Link to="/materi/detail" className="bg-white text-primary-dark font-semibold py-2.5 px-6 rounded-full flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors duration-300 shadow-sm text-sm inline-flex">
+          <Link to={`/materi/detail?id=${course.id || 1}`} className="bg-white text-primary-dark font-semibold py-2.5 px-6 rounded-full flex items-center justify-center gap-2 hover:bg-gray-50 transition-colors duration-300 shadow-sm text-sm inline-flex">
             <PlayCircle size={18} />
             Lanjutkan Materi
           </Link>

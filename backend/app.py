@@ -11,6 +11,7 @@ from datetime import datetime
 from flask import Flask, request, jsonify
 from flask_cors import CORS
 from flask_sqlalchemy import SQLAlchemy
+from werkzeug.security import generate_password_hash, check_password_hash
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
@@ -53,14 +54,16 @@ db = SQLAlchemy(app)
 # ─── Models ───────────────────────────────────────────────────────────────────
 class User(db.Model):
     __tablename__ = 'users'
-    id          = db.Column(db.Integer, primary_key=True)
-    google_id   = db.Column(db.String(100), unique=True, nullable=True)
-    name        = db.Column(db.String(100), nullable=False)
-    email       = db.Column(db.String(150), unique=True, nullable=False)
-    avatar      = db.Column(db.String(500), nullable=True)
-    role        = db.Column(db.String(20), default='user') # 'user' or 'admin'
-    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
-    is_new      = db.Column(db.Boolean, default=True)
+    id            = db.Column(db.Integer, primary_key=True)
+    google_id     = db.Column(db.String(100), unique=True, nullable=True)
+    name          = db.Column(db.String(100), nullable=False)
+    email         = db.Column(db.String(150), unique=True, nullable=False)
+    password_hash = db.Column(db.String(255), nullable=True)
+    avatar        = db.Column(db.Text, nullable=True)
+    grade         = db.Column(db.String(100), default='SMA Kelas 10')
+    role          = db.Column(db.String(20), default='user') # 'user' or 'admin'
+    created_at    = db.Column(db.DateTime, default=datetime.utcnow)
+    is_new        = db.Column(db.Boolean, default=True)
 
     recommendations = db.relationship('CareerRecommendation', backref='user', lazy=True)
     progress = db.relationship('UserProgress', backref='user', uselist=False, lazy=True)
@@ -71,7 +74,8 @@ class User(db.Model):
             "name":       self.name,
             "email":      self.email,
             "avatar":     self.avatar,
-            "role":       self.role,
+            "grade":      self.grade or 'SMA Kelas 10',
+            "role":       self.role or 'user',
             "google_id":  self.google_id,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
@@ -169,10 +173,18 @@ class Materi(db.Model):
     xp_reward   = db.Column(db.Integer, default=50)
     is_locked   = db.Column(db.Boolean, default=False)
     order       = db.Column(db.Integer, default=0)
+    careers     = db.Column(db.Text, default='["Semua Karir"]')  # JSON list of career names
     created_at  = db.Column(db.DateTime, default=datetime.utcnow)
     updated_at  = db.Column(db.DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     def to_dict(self):
+        careers_parsed = ["Semua Karir"]
+        if self.careers:
+            try:
+                careers_parsed = json.loads(self.careers)
+            except Exception:
+                careers_parsed = [self.careers]
+
         return {
             "id":           self.id,
             "subjectId":    self.subject_id,
@@ -186,6 +198,7 @@ class Materi(db.Model):
             "xpReward":     self.xp_reward or 50,
             "isLocked":     bool(self.is_locked),
             "order":        self.order or 0,
+            "careers":      careers_parsed,
             "createdAt":    self.created_at.isoformat() if self.created_at else None,
             "updatedAt":    self.updated_at.isoformat() if self.updated_at else None
         }
@@ -194,75 +207,270 @@ class Materi(db.Model):
 # ─── Create tables & Seed default data on startup ─────────────────────────────
 def seed_default_data():
     if Subject.query.count() == 0:
-        print("[SEED] Seeding initial subjects and materi...")
-        s1 = Subject(title='Aljabar Linear', icon='Calculator', color='text-blue-600', bg_color='bg-blue-50', order=1)
-        s2 = Subject(title='Teori Graf', icon='GitBranch', color='text-orange-600', bg_color='bg-orange-50', order=2)
-        s3 = Subject(title='Probabilitas & Statistika', icon='PieChart', color='text-green-600', bg_color='bg-green-50', order=3)
+        print("[SEED] Seeding initial subjects and materi with career tracks...")
+        # 1. Subjects
+        s1 = Subject(title='Aljabar Linear & Matematika AI', icon='Calculator', color='text-blue-600', bg_color='bg-blue-50', order=1)
+        s2 = Subject(title='Struktur Data & Algoritma', icon='GitBranch', color='text-violet-600', bg_color='bg-violet-50', order=2)
+        s3 = Subject(title='Probabilitas & Statistika Data', icon='PieChart', color='text-green-600', bg_color='bg-green-50', order=3)
+        s4 = Subject(title='Pemrograman Web & Software', icon='BookOpen', color='text-indigo-600', bg_color='bg-indigo-50', order=4)
+        s5 = Subject(title='UI/UX Design & Prototyping', icon='Layers', color='text-pink-600', bg_color='bg-pink-50', order=5)
+        s6 = Subject(title='Jaringan Komputer & Cloud Security', icon='ShieldCheck', color='text-orange-600', bg_color='bg-orange-50', order=6)
+        s7 = Subject(title='Product Management & Strategi Bisnis', icon='Briefcase', color='text-emerald-600', bg_color='bg-emerald-50', order=7)
 
-        db.session.add_all([s1, s2, s3])
+        db.session.add_all([s1, s2, s3, s4, s5, s6, s7])
         db.session.flush()
 
-        m1 = Materi(
-            subject_id=s1.id,
-            title='Konsep Dasar Aljabar Linear',
-            description='Pengantar Matematika untuk AI, vektor, dan operasi matriks dasar.',
-            duration='18:20',
-            type='Video',
-            video_url='https://www.youtube.com/watch?v=fNk_zzaMoSs',
-            content='### Pengantar Aljabar Linear\nAljabar linear adalah cabang matematika yang mempelajari vektor, ruang vektor, transformasi linear, dan sistem persamaan linear. Dalam Machine Learning dan Data Science, data direpresentasikan dalam bentuk vektor dan matriks multidimensi.',
-            xp_reward=50,
-            is_locked=False,
-            order=1
-        )
-        m2 = Materi(
-            subject_id=s1.id,
-            title='Operasi Matriks Tingkat Lanjut',
-            description='Perkalian matriks, invers, dan determinan dalam komputasi modern.',
-            duration='24:10',
-            type='Video + Artikel',
-            video_url='https://www.youtube.com/watch?v=kYB8IZa5AuE',
-            content='### Operasi Matriks Lanjut\nMemahami dot product, perkalian matriks, determinan, dan invers matriks untuk komputasi grafika komputer dan neural network.',
-            xp_reward=50,
-            is_locked=True,
-            order=2
-        )
-        m3 = Materi(
-            subject_id=s2.id,
-            title='Pengenalan Graf dan Tree',
-            description='Mengenal struktur data graf, representasi adjacency matrix, dan pohon.',
-            duration='15:30',
-            type='Video',
-            video_url='',
-            content='### Struktur Data Graf\nGraf terdiri dari himpunan simpul (vertices) dan sisi (edges). Digunakan luas dalam navigasi rute terpendek dan jejaring sosial.',
-            xp_reward=50,
-            is_locked=True,
-            order=1
-        )
-        m4 = Materi(
-            subject_id=s3.id,
-            title='Probabilitas Dasar',
-            description='Peluang kejadian, ruang sampel, dan distribusi probabilitas.',
-            duration='20:45',
-            type='Video',
-            video_url='',
-            content='### Dasar-dasar Teori Peluang\nKonsep peluang bersyarat, independensi variabel, dan Teorema Bayes.',
-            xp_reward=50,
-            is_locked=True,
-            order=1
-        )
+        materi_list = [
+            # ── Data & AI Track ──
+            Materi(
+                subject_id=s1.id,
+                title='Konsep Dasar Vektor & Matriks untuk AI',
+                description='Pengantar representasi ruang vektor dan operasi matriks dalam Machine Learning.',
+                duration='18:20',
+                type='Video',
+                video_url='https://www.youtube.com/watch?v=fNk_zzaMoSs',
+                content='### Pengantar Aljabar Linear\nAljabar linear adalah fondasi komputasi data dalam Machine Learning dan Data Science.',
+                xp_reward=50,
+                is_locked=False,
+                order=1,
+                careers=json.dumps(['Data & AI'])
+            ),
+            Materi(
+                subject_id=s3.id,
+                title='Probabilitas & Distribusi Data',
+                description='Konsep peluang, ruang sampel, distribusi normal, dan inferensi data.',
+                duration='20:45',
+                type='Video',
+                video_url='https://www.youtube.com/watch?v=uzkc-qNVoOk',
+                content='### Teori Peluang\nMemahami variabel acak dan distribusi probabilitas untuk pemodelan data prediktif.',
+                xp_reward=50,
+                is_locked=True,
+                order=2,
+                careers=json.dumps(['Data & AI'])
+            ),
+            Materi(
+                subject_id=s3.id,
+                title='Teorema Bayes & Algoritma Klasifikasi',
+                description='Penerapan inferensi Bayesian dalam Naive Bayes Classifier dan optimasi model.',
+                duration='26:30',
+                type='Video + Artikel',
+                video_url='https://www.youtube.com/watch?v=HZGCoVF3YvM',
+                content='### Teorema Bayes\nMenghitung probabilitas posterior berdasarkan prior dan likelihood.',
+                xp_reward=60,
+                is_locked=True,
+                order=3,
+                careers=json.dumps(['Data & AI'])
+            ),
+            Materi(
+                subject_id=s1.id,
+                title='Eigenvalue & Reduksi Dimensi (PCA)',
+                description='Transformasi data multidimensi dan analisis komponen utama untuk Big Data.',
+                duration='22:15',
+                type='Video',
+                video_url='https://www.youtube.com/watch?v=PFDu9oVAE-g',
+                content='### PCA & Eigenvector\nTeknik esensial untuk kompresi fitur dan eksplorasi data tingkat lanjut.',
+                xp_reward=60,
+                is_locked=True,
+                order=4,
+                careers=json.dumps(['Data & AI'])
+            ),
 
-        db.session.add_all([m1, m2, m3, m4])
+            # ── Software Development Track ──
+            Materi(
+                subject_id=s2.id,
+                title='Dasar Struktur Data: Array, Stack & Queue',
+                description='Penyimpanan memori terstruktur dan efisiensi akses elemen pada pemrograman modern.',
+                duration='16:40',
+                type='Video',
+                video_url='https://www.youtube.com/watch?v=09_LlHjoEiY',
+                content='### Struktur Data Dasar\nFondasi utama logika komputasi dan manajemen memori dalam software engineering.',
+                xp_reward=50,
+                is_locked=False,
+                order=1,
+                careers=json.dumps(['Software Development'])
+            ),
+            Materi(
+                subject_id=s4.id,
+                title='Arsitektur RESTful API & Backend Services',
+                description='Mendesain endpoint API scalable, HTTP method, status code, dan JSON payload.',
+                duration='24:15',
+                type='Video + Artikel',
+                video_url='https://www.youtube.com/watch?v=kYB8IZa5AuE',
+                content='### RESTful API Design\nStandar komunikasi data client-server pada sistem terdistribusi modern.',
+                xp_reward=50,
+                is_locked=True,
+                order=2,
+                careers=json.dumps(['Software Development'])
+            ),
+            Materi(
+                subject_id=s2.id,
+                title='Algoritma Graf & Shortest Path Dijkstra',
+                description='Pemodelan relasi node, adjacency matrix, dan pencarian lintasan terpendek.',
+                duration='25:00',
+                type='Video + Artikel',
+                video_url='https://www.youtube.com/watch?v=EFg3u_E6eHU',
+                content='### Graf & Dijkstra\nAlgoritma esensial untuk navigasi rute dan pemrosesan jaringan relasional.',
+                xp_reward=60,
+                is_locked=True,
+                order=3,
+                careers=json.dumps(['Software Development'])
+            ),
+            Materi(
+                subject_id=s4.id,
+                title='Git Version Control & CI/CD Pipeline',
+                description='Branching strategy, pull request workflow, automated testing, dan deployment.',
+                duration='28:00',
+                type='Video + Interaktif',
+                video_url='https://www.youtube.com/watch?v=_uQrJ0TkZlc',
+                content='### Git & DevOps Dasar\nKolaborasi kode skala tim dan integrasi otomatis perangkat lunak.',
+                xp_reward=60,
+                is_locked=True,
+                order=4,
+                careers=json.dumps(['Software Development'])
+            ),
+
+            # ── Design Track ──
+            Materi(
+                subject_id=s5.id,
+                title='Prinsip Desain Antarmuka (UI/UX) & Layout',
+                description='Visual hierarchy, color theory, spacing, dan navigasi ramah pengguna.',
+                duration='17:30',
+                type='Video',
+                video_url='https://www.youtube.com/watch?v=fNk_zzaMoSs',
+                content='### Dasar UI/UX Design\nMemahami psikologi pengguna dan tata letak responsif pada aplikasi modern.',
+                xp_reward=50,
+                is_locked=False,
+                order=1,
+                careers=json.dumps(['Design'])
+            ),
+            Materi(
+                subject_id=s5.id,
+                title='Design System & Component Reusability',
+                description='Membangun sistem token warna, tipografi terstruktur, dan komponen UI di Figma.',
+                duration='21:40',
+                type='Video + Artikel',
+                video_url='https://www.youtube.com/watch?v=kYB8IZa5AuE',
+                content='### Design System\nMenjaga konsistensi estetika dan skalabilitas antarmuka aplikasi digital.',
+                xp_reward=50,
+                is_locked=True,
+                order=2,
+                careers=json.dumps(['Design'])
+            ),
+            Materi(
+                subject_id=s5.id,
+                title='Wireframing, Prototyping & Usability Test',
+                description='Membuat alur interaktif prototipe dan validasi pengalaman pengguna.',
+                duration='26:00',
+                type='Video + Interaktif',
+                video_url='https://www.youtube.com/watch?v=EFg3u_E6eHU',
+                content='### Usability Testing\nMenguji kemudahan penggunaan dan kepuasan pengguna sebelum tahap koding.',
+                xp_reward=60,
+                is_locked=True,
+                order=3,
+                careers=json.dumps(['Design'])
+            ),
+
+            # ── Infrastructure & Security Track ──
+            Materi(
+                subject_id=s6.id,
+                title='Dasar Jaringan Komputer & Model OSI',
+                description='Protokol TCP/IP, DNS, Routing, Subnetting, dan arsitektur internet.',
+                duration='19:15',
+                type='Video',
+                video_url='https://www.youtube.com/watch?v=09_LlHjoEiY',
+                content='### Networking Fundamentals\nMemahami bagaimana paket data ditransmisikan melintasi jaringan global.',
+                xp_reward=50,
+                is_locked=False,
+                order=1,
+                careers=json.dumps(['Infrastructure & Security'])
+            ),
+            Materi(
+                subject_id=s6.id,
+                title='Keamanan Siber & Kriptografi Modern',
+                description='Enkripsi simetris/asimetris, hashing, JWT, SSL/TLS, dan proteksi serangan web.',
+                duration='25:50',
+                type='Video + Artikel',
+                video_url='https://www.youtube.com/watch?v=HZGCoVF3YvM',
+                content='### Cybersecurity & Cryptography\nMenjaga integritas, kerahasiaan, dan otentikasi data dalam sistem IT.',
+                xp_reward=60,
+                is_locked=True,
+                order=2,
+                careers=json.dumps(['Infrastructure & Security'])
+            ),
+            Materi(
+                subject_id=s6.id,
+                title='Cloud Infrastructure & Docker Containerization',
+                description='Virtualisasi, Docker container, cluster orchestration, dan layanan cloud AWS/GCP.',
+                duration='27:30',
+                type='Video + Interaktif',
+                video_url='https://www.youtube.com/watch?v=9vKqVkMQHKk',
+                content='### Cloud & Containers\nMenjalankan dan mengelola aplikasi di lingkungan cloud yang terisolasi dan tangguh.',
+                xp_reward=60,
+                is_locked=True,
+                order=3,
+                careers=json.dumps(['Infrastructure & Security'])
+            ),
+
+            # ── Product & Business Track ──
+            Materi(
+                subject_id=s7.id,
+                title='Product Discovery & Minimum Viable Product (MVP)',
+                description='Identifikasi problem market, analisis kompetitor, dan formulasi value proposition.',
+                duration='18:00',
+                type='Video',
+                video_url='https://www.youtube.com/watch?v=fNk_zzaMoSs',
+                content='### Product Discovery\nMenemukan solusi bernilai tinggi yang layak secara bisnis dan teknologi.',
+                xp_reward=50,
+                is_locked=False,
+                order=1,
+                careers=json.dumps(['Product & Business'])
+            ),
+            Materi(
+                subject_id=s7.id,
+                title='Agile Framework, Scrum & Product Backlog',
+                description='Sprint planning, backlog grooming, user story, dan kolaborasi lintas fungsi.',
+                duration='22:30',
+                type='Video + Artikel',
+                video_url='https://www.youtube.com/watch?v=EFg3u_E6eHU',
+                content='### Agile & Scrum\nMetodologi iteratif untuk merilis fitur produk secara cepat dan adaptif.',
+                xp_reward=50,
+                is_locked=True,
+                order=2,
+                careers=json.dumps(['Product & Business'])
+            ),
+            Materi(
+                subject_id=s7.id,
+                title='Product Metrics, KPI & Data-Driven Growth',
+                description='Tracking retention rate, CAC, LTV, conversion funnel, dan A/B testing produk.',
+                duration='24:10',
+                type='Video + Artikel',
+                video_url='https://www.youtube.com/watch?v=HZGCoVF3YvM',
+                content='### Product Metrics & Analytics\nMengambil keputusan pengembangan produk berdasarkan data analitik kuantitatif.',
+                xp_reward=60,
+                is_locked=True,
+                order=3,
+                careers=json.dumps(['Product & Business'])
+            ),
+        ]
+
+        db.session.add_all(materi_list)
         db.session.commit()
-        print("[SEED] Default data seeded successfully!")
+        print("[SEED] Default subjects and modules with career tracks seeded successfully!")
 
 with app.app_context():
     db.create_all()
-    try:
-        with db.engine.connect() as conn:
-            conn.execute(db.text("ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'"))
-            conn.commit()
-    except Exception:
-        pass
+    for col_sql in [
+        "ALTER TABLE users ADD COLUMN role VARCHAR(20) DEFAULT 'user'",
+        "ALTER TABLE users ADD COLUMN password_hash VARCHAR(255)",
+        "ALTER TABLE users ADD COLUMN grade VARCHAR(100) DEFAULT 'SMA Kelas 10'",
+        "ALTER TABLE materi ADD COLUMN careers TEXT DEFAULT '[\"Semua Karir\"]'"
+    ]:
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(db.text(col_sql))
+                conn.commit()
+        except Exception:
+            pass
     seed_default_data()
 
 # ─── Load ML Model ────────────────────────────────────────────────────────────
@@ -405,6 +613,133 @@ def google_token_auth():
         "has_recommendation": has_recommendation,
         "progress":           progress_data
     }), 200
+
+
+@app.route('/api/auth/register', methods=['POST'])
+def register():
+    """Register a new user with name, email, and password."""
+    data = request.get_json() or {}
+    name = data.get('name', '').strip()
+    email = data.get('email', '').strip().lower()
+    password = data.get('password', '')
+
+    if not email or not password or not name:
+        return jsonify({"error": "Nama lengkap, email, dan kata sandi wajib diisi."}), 400
+
+    if User.query.filter_by(email=email).first():
+        return jsonify({"error": "Email sudah terdaftar. Silakan login."}), 400
+
+    password_hash = generate_password_hash(password)
+    user = User(
+        name=name,
+        email=email,
+        password_hash=password_hash,
+        role='user',
+        is_new=True,
+        grade='SMA Kelas 10'
+    )
+    db.session.add(user)
+    db.session.commit()
+
+    total_materi = Materi.query.count()
+    initial_stats = [
+        {"id": 1, "icon": "Book", "value": str(total_materi), "label": "Materi Tersedia", "iconColorClass": "text-blue-500", "iconBgClass": "bg-blue-50"},
+        {"id": 2, "icon": "GraduationCap", "value": "0", "label": "Modul Selesai", "iconColorClass": "text-emerald-500", "iconBgClass": "bg-emerald-50"},
+        {"id": 3, "icon": "Flame", "value": "1", "label": "Hari Beruntun", "iconColorClass": "text-orange-500", "iconBgClass": "bg-orange-50"},
+        {"id": 4, "icon": "Trophy", "value": "0", "label": "Total XP", "iconColorClass": "text-primary-dark", "iconBgClass": "bg-primary-light/20"}
+    ]
+    initial_notifications = [{
+        "id": int(datetime.utcnow().timestamp() * 1000),
+        "type": "system",
+        "unread": True,
+        "title": "Selamat Datang! 🎉",
+        "time": "Baru saja",
+        "description": f"Halo {name}, selamat bergabung di platform belajar cerdas!",
+        "iconName": "CheckCheck",
+        "iconBg": "bg-indigo-100",
+        "iconColor": "text-indigo-600",
+    }]
+
+    progress = UserProgress(
+        user_id=user.id,
+        completed_modules="[]",
+        completed_quizzes="[]",
+        quiz_xp=0,
+        daily_target=json.dumps({"targetMinutes": 60, "currentMinutes": 0, "message": "Ayo mulai target belajarmu hari ini!"}),
+        preferences=json.dumps({"learningStyle": "visual"}),
+        unlocked_badges="[]",
+        last_login_date=datetime.utcnow().strftime('%Y-%m-%d'),
+        stats=json.dumps(initial_stats),
+        notifications=json.dumps(initial_notifications)
+    )
+    db.session.add(progress)
+    db.session.commit()
+
+    return jsonify({
+        "message": "Registrasi berhasil",
+        "user": user.to_dict(),
+        "is_new_user": True,
+        "has_recommendation": False,
+        "progress": progress.to_dict()
+    }), 201
+
+
+@app.route('/api/auth/login', methods=['POST'])
+def login():
+    """Authenticate user with email and password."""
+    data = request.get_json() or {}
+    email = data.get('email', '').strip().lower()
+    password = data.get('password', '')
+
+    if not email or not password:
+        return jsonify({"error": "Email dan kata sandi wajib diisi."}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        return jsonify({"error": "Akun tidak ditemukan. Silakan daftar terlebih dahulu."}), 401
+
+    if not user.password_hash or not check_password_hash(user.password_hash, password):
+        return jsonify({"error": "Email atau kata sandi salah."}), 401
+
+    has_recommendation = CareerRecommendation.query.filter_by(user_id=user.id).first() is not None
+    progress = UserProgress.query.filter_by(user_id=user.id).first()
+    progress_data = progress.to_dict() if progress else None
+
+    return jsonify({
+        "message": "Login berhasil",
+        "user": user.to_dict(),
+        "is_new_user": bool(user.is_new),
+        "has_recommendation": has_recommendation,
+        "progress": progress_data
+    }), 200
+
+
+@app.route('/api/user/<int:user_id>', methods=['GET'])
+def get_user_profile(user_id):
+    """Fetch user profile details."""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User tidak ditemukan"}), 404
+    return jsonify({"user": user.to_dict()}), 200
+
+
+@app.route('/api/user/<int:user_id>', methods=['PUT'])
+def update_user_profile(user_id):
+    """Update user profile (name, avatar, grade)."""
+    user = User.query.get(user_id)
+    if not user:
+        return jsonify({"error": "User tidak ditemukan"}), 404
+
+    data = request.get_json() or {}
+    if 'name' in data and data['name']:
+        user.name = data['name'].strip()
+    if 'avatar' in data:
+        user.avatar = data['avatar']
+    if 'grade' in data and data['grade']:
+        user.grade = data['grade'].strip()
+
+    db.session.commit()
+    return jsonify({"message": "Profil berhasil diperbarui", "user": user.to_dict()}), 200
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -559,11 +894,41 @@ def get_admin_stats():
     }), 200
 
 
+@app.route('/api/careers', methods=['GET'])
+def get_careers():
+    """List all supported career recommendation tracks."""
+    career_list = [
+        {"id": "Data & AI", "name": "Data & AI", "icon": "🤖", "color": "text-blue-600", "bgColor": "bg-blue-50", "badgeColor": "bg-blue-100 text-blue-700", "desc": "Menganalisis data & membangun model kecerdasan buatan"},
+        {"id": "Software Development", "name": "Software Development", "icon": "💻", "color": "text-violet-600", "bgColor": "bg-violet-50", "badgeColor": "bg-violet-100 text-violet-700", "desc": "Membangun & mengembangkan aplikasi perangkat lunak"},
+        {"id": "Design", "name": "Design", "icon": "🎨", "color": "text-pink-600", "bgColor": "bg-pink-50", "badgeColor": "bg-pink-100 text-pink-700", "desc": "Merancang antarmuka & pengalaman pengguna yang menarik"},
+        {"id": "Infrastructure & Security", "name": "Infrastructure & Security", "icon": "🔒", "color": "text-orange-600", "bgColor": "bg-orange-50", "badgeColor": "bg-orange-100 text-orange-700", "desc": "Mengelola infrastruktur IT & keamanan sistem"},
+        {"id": "Product & Business", "name": "Product & Business", "icon": "📊", "color": "text-emerald-600", "bgColor": "bg-emerald-50", "badgeColor": "bg-emerald-100 text-emerald-700", "desc": "Mengelola produk digital & strategi bisnis"}
+    ]
+    return jsonify({"careers": career_list}), 200
+
+
 @app.route('/api/subjects', methods=['GET'])
 def get_subjects():
-    """List all subjects with their modules/materi ordered."""
+    """List all subjects with their modules/materi ordered, optional career filtering."""
+    career_filter = request.args.get('career')
     subjects = Subject.query.order_by(Subject.order.asc(), Subject.id.asc()).all()
-    return jsonify({"subjects": [s.to_dict(include_modules=True) for s in subjects]}), 200
+    
+    result = []
+    for s in subjects:
+        sub_dict = s.to_dict(include_modules=False)
+        modules = []
+        for m in s.modules:
+            m_dict = m.to_dict()
+            if not career_filter or career_filter == 'all':
+                modules.append(m_dict)
+            else:
+                m_careers = m_dict.get('careers', [])
+                if 'Semua Karir' in m_careers or career_filter in m_careers:
+                    modules.append(m_dict)
+        sub_dict['modules'] = modules
+        result.append(sub_dict)
+        
+    return jsonify({"subjects": result}), 200
 
 
 @app.route('/api/subjects', methods=['POST'])
@@ -626,15 +991,27 @@ def delete_subject(subject_id):
 
 @app.route('/api/materi', methods=['GET'])
 def get_all_materi():
-    """List all materi with optional filtering by subject_id."""
+    """List all materi with optional filtering by subject_id and career."""
     subject_id = request.args.get('subject_id')
+    career = request.args.get('career')
     query = Materi.query
 
-    if subject_id:
+    if subject_id and subject_id != 'all':
         query = query.filter_by(subject_id=subject_id)
 
     materi_list = query.order_by(Materi.subject_id.asc(), Materi.order.asc(), Materi.id.asc()).all()
-    return jsonify({"materi": [m.to_dict() for m in materi_list]}), 200
+    
+    result = []
+    for m in materi_list:
+        m_dict = m.to_dict()
+        if not career or career == 'all':
+            result.append(m_dict)
+        else:
+            m_careers = m_dict.get('careers', [])
+            if 'Semua Karir' in m_careers or career in m_careers:
+                result.append(m_dict)
+
+    return jsonify({"materi": result}), 200
 
 
 @app.route('/api/materi/<int:materi_id>', methods=['GET'])
@@ -649,7 +1026,7 @@ def get_materi_detail(materi_id):
 
 @app.route('/api/materi', methods=['POST'])
 def create_materi():
-    """Create a new materi/modul."""
+    """Create a new materi/modul with career assignment."""
     data = request.get_json()
     if not data:
         return jsonify({"error": "No data provided"}), 400
@@ -664,6 +1041,19 @@ def create_materi():
     if not subject:
         return jsonify({"error": "Kategori tidak ditemukan"}), 404
 
+    # Parse careers
+    careers_input = data.get('careers', ['Semua Karir'])
+    if isinstance(careers_input, list):
+        careers_json = json.dumps(careers_input if len(careers_input) > 0 else ['Semua Karir'])
+    elif isinstance(careers_input, str):
+        try:
+            parsed = json.loads(careers_input)
+            careers_json = json.dumps(parsed if len(parsed) > 0 else ['Semua Karir'])
+        except Exception:
+            careers_json = json.dumps([careers_input] if careers_input else ['Semua Karir'])
+    else:
+        careers_json = json.dumps(['Semua Karir'])
+
     materi = Materi(
         subject_id  = subject_id,
         title       = title.strip(),
@@ -674,7 +1064,8 @@ def create_materi():
         content     = data.get('content', ''),
         xp_reward   = int(data.get('xpReward', 50)),
         is_locked   = bool(data.get('isLocked', False)),
-        order       = int(data.get('order', 0))
+        order       = int(data.get('order', 0)),
+        careers     = careers_json
     )
     db.session.add(materi)
     db.session.commit()
@@ -684,7 +1075,7 @@ def create_materi():
 
 @app.route('/api/materi/<int:materi_id>', methods=['PUT'])
 def update_materi(materi_id):
-    """Update an existing materi."""
+    """Update an existing materi with career assignment."""
     materi = Materi.query.get(materi_id)
     if not materi:
         return jsonify({"error": "Materi tidak ditemukan"}), 404
@@ -717,6 +1108,16 @@ def update_materi(materi_id):
         materi.is_locked = bool(data['isLocked'])
     if 'order' in data:
         materi.order = int(data['order'])
+    if 'careers' in data:
+        careers_input = data.get('careers')
+        if isinstance(careers_input, list):
+            materi.careers = json.dumps(careers_input if len(careers_input) > 0 else ['Semua Karir'])
+        elif isinstance(careers_input, str):
+            try:
+                parsed = json.loads(careers_input)
+                materi.careers = json.dumps(parsed if len(parsed) > 0 else ['Semua Karir'])
+            except Exception:
+                materi.careers = json.dumps([careers_input] if careers_input else ['Semua Karir'])
 
     materi.updated_at = datetime.utcnow()
     db.session.commit()

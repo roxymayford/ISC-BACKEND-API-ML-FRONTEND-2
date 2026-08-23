@@ -28,13 +28,23 @@ import {
   LogOut,
   EyeOff,
   UserCheck,
-  ArrowLeft
+  ArrowLeft,
+  Check,
+  Briefcase
 } from 'lucide-react';
 import { useNavigate, Link } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 
 const FLASK_API = import.meta.env.VITE_ML_API_URL || 'http://localhost:5000/api';
+
+const AVAILABLE_CAREERS = [
+  { id: 'Data & AI', name: 'Data & AI', icon: '🤖', badgeClass: 'bg-blue-50 text-blue-700 border-blue-200' },
+  { id: 'Software Development', name: 'Software Development', icon: '💻', badgeClass: 'bg-violet-50 text-violet-700 border-violet-200' },
+  { id: 'Design', name: 'Design', icon: '🎨', badgeClass: 'bg-pink-50 text-pink-700 border-pink-200' },
+  { id: 'Infrastructure & Security', name: 'Infrastructure & Security', icon: '🔒', badgeClass: 'bg-orange-50 text-orange-700 border-orange-200' },
+  { id: 'Product & Business', name: 'Product & Business', icon: '📊', badgeClass: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+];
 
 const AdminDashboard = () => {
   const navigate = useNavigate();
@@ -72,6 +82,7 @@ const AdminDashboard = () => {
   // Filters & Search
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedSubjectFilter, setSelectedSubjectFilter] = useState('all');
+  const [selectedCareerFilter, setSelectedCareerFilter] = useState('all');
 
   // Modals
   const [isMateriModalOpen, setIsMateriModalOpen] = useState(false);
@@ -94,7 +105,8 @@ const AdminDashboard = () => {
     content: '',
     xpReward: 50,
     isLocked: false,
-    order: 0
+    order: 0,
+    careers: ['Semua Karir']
   });
 
   // Form states for Subject
@@ -181,13 +193,11 @@ const AdminDashboard = () => {
 
   // Handle Admin Logout
   const handleAdminLogout = () => {
-    if (window.confirm('Keluar dari sesi Admin Dashboard?')) {
-      localStorage.removeItem('adminAuth');
-      setIsAdminAuthenticated(false);
-      setAdminUsername('');
-      setAdminPassword('');
-      showToast('Anda telah keluar dari Admin Dashboard.', 'info');
-    }
+    localStorage.removeItem('adminAuth');
+    setIsAdminAuthenticated(false);
+    setAdminUsername('');
+    setAdminPassword('');
+    navigate('/dashboard');
   };
 
   // Fetch all initial data
@@ -240,7 +250,8 @@ const AdminDashboard = () => {
       content: '',
       xpReward: 50,
       isLocked: false,
-      order: materiList.length + 1
+      order: materiList.length + 1,
+      careers: ['Semua Karir']
     });
     setIsMateriModalOpen(true);
   };
@@ -258,9 +269,40 @@ const AdminDashboard = () => {
       content: materi.content || '',
       xpReward: materi.xpReward || 50,
       isLocked: Boolean(materi.isLocked),
-      order: materi.order || 0
+      order: materi.order || 0,
+      careers: (materi.careers && materi.careers.length > 0) ? materi.careers : ['Semua Karir']
     });
     setIsMateriModalOpen(true);
+  };
+
+  // Career Selection Helper for Form
+  const toggleCareerSelection = (careerId) => {
+    setMateriForm(prev => {
+      let current = [...(prev.careers || [])];
+      
+      if (careerId === 'Semua Karir') {
+        return { ...prev, careers: ['Semua Karir'] };
+      }
+
+      // If "Semua Karir" was currently selected, remove it
+      current = current.filter(c => c !== 'Semua Karir');
+
+      if (current.includes(careerId)) {
+        current = current.filter(c => c !== careerId);
+        // If nothing left, fallback to Semua Karir
+        if (current.length === 0) {
+          current = ['Semua Karir'];
+        }
+      } else {
+        current.push(careerId);
+        // If all 5 careers selected, simplify to 'Semua Karir'
+        if (current.length === AVAILABLE_CAREERS.length) {
+          current = ['Semua Karir'];
+        }
+      }
+
+      return { ...prev, careers: current };
+    });
   };
 
   // Handle Submit Materi Form (Create / Update)
@@ -366,7 +408,12 @@ const AdminDashboard = () => {
     const matchesSearch = item.title?.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           item.description?.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesSubject = selectedSubjectFilter === 'all' || item.subjectId === parseInt(selectedSubjectFilter);
-    return matchesSearch && matchesSubject;
+    const itemCareers = item.careers || ['Semua Karir'];
+    const matchesCareer = selectedCareerFilter === 'all' || 
+                          itemCareers.includes('Semua Karir') || 
+                          itemCareers.includes(selectedCareerFilter);
+
+    return matchesSearch && matchesSubject && matchesCareer;
   });
 
   // ─── RENDER: LOGIN GATE IF NOT AUTHENTICATED ────────────────────────────────
@@ -604,29 +651,48 @@ const AdminDashboard = () => {
         </div>
 
         {/* Toolbar: Search & Filter */}
-        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col md:flex-row items-center justify-between gap-4 mb-6">
-          <div className="relative w-full md:w-80">
+        <div className="bg-white p-4 rounded-2xl border border-gray-100 shadow-sm flex flex-col lg:flex-row items-center justify-between gap-4 mb-6">
+          <div className="relative w-full lg:w-72">
             <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-gray-400">
               <Search size={18} />
             </div>
             <input 
-              type="text"
+              type="text" 
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Cari materi berdasarkan judul atau deskripsi..."
+              placeholder="Cari materi..."
               className="w-full pl-10 pr-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-medium text-gray-800 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
           </div>
 
-          <div className="flex items-center gap-3 w-full md:w-auto">
-            <div className="flex items-center gap-2 text-sm text-gray-500 font-medium">
-              <Filter size={16} />
-              <span>Filter Subjek:</span>
+          <div className="flex items-center gap-3 w-full lg:w-auto flex-wrap">
+            {/* Career Filter */}
+            <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase">
+              <Briefcase size={15} className="text-indigo-600" />
+              <span>Karir:</span>
+            </div>
+            <select
+              value={selectedCareerFilter}
+              onChange={(e) => setSelectedCareerFilter(e.target.value)}
+              className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+            >
+              <option value="all">Semua Karir ({materiList.length})</option>
+              {AVAILABLE_CAREERS.map(ac => (
+                <option key={ac.id} value={ac.id}>
+                  {ac.icon} {ac.name}
+                </option>
+              ))}
+            </select>
+
+            {/* Subject Filter */}
+            <div className="flex items-center gap-2 text-xs font-bold text-gray-500 uppercase ml-1">
+              <Filter size={15} className="text-indigo-600" />
+              <span>Kategori:</span>
             </div>
             <select
               value={selectedSubjectFilter}
               onChange={(e) => setSelectedSubjectFilter(e.target.value)}
-              className="px-3.5 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm font-semibold text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer"
+              className="px-3 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-gray-700 focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all cursor-pointer max-w-[200px] truncate"
             >
               <option value="all">Semua Kategori ({materiList.length})</option>
               {subjects.map(sub => (
@@ -641,7 +707,7 @@ const AdminDashboard = () => {
               title="Refresh Data"
               className="p-2.5 bg-gray-50 border border-gray-200 text-gray-500 hover:text-indigo-600 rounded-xl hover:bg-gray-100 transition-colors"
             >
-              <RefreshCw size={18} className={loading ? 'animate-spin' : ''} />
+              <RefreshCw size={17} className={loading ? 'animate-spin' : ''} />
             </button>
           </div>
         </div>
@@ -663,7 +729,7 @@ const AdminDashboard = () => {
               <BookOpen size={48} className="text-gray-200 mb-3" />
               <h3 className="font-bold text-gray-700 text-lg mb-1">Belum Ada Materi Ditemukan</h3>
               <p className="text-sm text-gray-400 max-w-md mb-6">
-                {searchQuery || selectedSubjectFilter !== 'all' 
+                {searchQuery || selectedSubjectFilter !== 'all' || selectedCareerFilter !== 'all'
                   ? 'Tidak ada materi yang sesuai dengan pencarian atau filter yang dipilih.'
                   : 'Mulai dengan menambahkan materi pertama ke database untuk siswa.'}
               </p>
@@ -681,6 +747,7 @@ const AdminDashboard = () => {
                   <tr className="bg-gray-50/70 border-b border-gray-100 text-xs font-bold text-gray-400 uppercase tracking-wider">
                     <th className="py-4 px-6">No / ID</th>
                     <th className="py-4 px-6">Kategori</th>
+                    <th className="py-4 px-6">Target Karir</th>
                     <th className="py-4 px-6">Judul Materi & Deskripsi</th>
                     <th className="py-4 px-6">Tipe & Durasi</th>
                     <th className="py-4 px-6">Status</th>
@@ -690,6 +757,7 @@ const AdminDashboard = () => {
                 <tbody className="divide-y divide-gray-100 text-sm">
                   {filteredMateri.map((item) => {
                     const subject = subjects.find(s => s.id === item.subjectId);
+                    const itemCareers = item.careers || ['Semua Karir'];
                     return (
                       <tr key={item.id} className="hover:bg-indigo-50/30 transition-colors group">
                         <td className="py-4 px-6 font-bold text-gray-400">
@@ -699,6 +767,19 @@ const AdminDashboard = () => {
                           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-indigo-50 text-indigo-700 border border-indigo-100/50">
                             {subject?.title || item.subjectTitle || 'Umum'}
                           </span>
+                        </td>
+                        <td className="py-4 px-6">
+                          <div className="flex flex-wrap gap-1 max-w-[220px]">
+                            {itemCareers.map((c, i) => {
+                              const meta = AVAILABLE_CAREERS.find(ac => ac.id === c);
+                              return (
+                                <span key={i} className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-bold border ${meta ? meta.badgeClass : 'bg-gray-100 text-gray-700 border-gray-200'}`}>
+                                  <span>{meta?.icon || '🌐'}</span>
+                                  <span>{c}</span>
+                                </span>
+                              );
+                            })}
+                          </div>
                         </td>
                         <td className="py-4 px-6 max-w-md">
                           <div className="font-bold text-gray-900 text-base mb-1">{item.title}</div>
@@ -773,7 +854,7 @@ const AdminDashboard = () => {
                   {editingMateri ? 'Edit Data Materi' : 'Tambah Materi Baru'}
                 </h3>
                 <p className="text-xs text-gray-500 mt-0.5">
-                  Isi informasi materi untuk dimasukkan langsung ke database siswa.
+                  Isi informasi materi dan tentukan pilihan rekomendasi karir tujuan.
                 </p>
               </div>
               <button
@@ -787,6 +868,61 @@ const AdminDashboard = () => {
             {/* Modal Body / Form */}
             <form onSubmit={handleSubmitMateri} className="p-8 overflow-y-auto space-y-5 flex-1 text-left">
               
+              {/* Target Career Recommendation Multi-Selector */}
+              <div className="bg-indigo-50/50 p-4.5 rounded-2xl border border-indigo-100/90">
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                  <label className="block text-xs font-bold text-indigo-900 uppercase tracking-wider flex items-center gap-1.5">
+                    <Briefcase size={14} className="text-indigo-600" />
+                    Pilihan Rekomendasi Karir (Target Career) *
+                  </label>
+                  <button
+                    type="button"
+                    onClick={() => toggleCareerSelection('Semua Karir')}
+                    className={`text-xs font-bold px-3 py-1 rounded-lg transition-all cursor-pointer ${
+                      (materiForm.careers || []).includes('Semua Karir')
+                        ? 'bg-indigo-600 text-white shadow-xs'
+                        : 'bg-white text-indigo-600 border border-indigo-200 hover:bg-indigo-100'
+                    }`}
+                  >
+                    🌐 Pilih Semua Karir (Umum)
+                  </button>
+                </div>
+                <p className="text-xs text-gray-500 mb-3">
+                  Tentukan materi ini ingin dimasukkan ke pilihan karir mana saja pada Learning Path siswa:
+                </p>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2">
+                  {AVAILABLE_CAREERS.map(c => {
+                    const isAll = (materiForm.careers || []).includes('Semua Karir');
+                    const isSpecific = (materiForm.careers || []).includes(c.id);
+                    const isChecked = isAll || isSpecific;
+
+                    return (
+                      <button
+                        key={c.id}
+                        type="button"
+                        onClick={() => toggleCareerSelection(c.id)}
+                        className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold border transition-all text-left cursor-pointer ${
+                          isSpecific
+                            ? 'bg-white border-indigo-600 text-indigo-700 ring-2 ring-indigo-500/20 shadow-xs'
+                            : isChecked
+                            ? 'bg-indigo-100/70 border-indigo-300 text-indigo-900'
+                            : 'bg-white border-gray-200 text-gray-600 hover:border-gray-300'
+                        }`}
+                      >
+                        <span className="text-base">{c.icon}</span>
+                        <span className="truncate flex-1">{c.name}</span>
+                        {isChecked && (
+                          <span className={`w-4 h-4 rounded-full flex items-center justify-center text-white text-[10px] ${isSpecific ? 'bg-indigo-600' : 'bg-indigo-400'}`}>
+                            ✓
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+
               {/* Subject / Category & Type */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
