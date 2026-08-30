@@ -111,13 +111,9 @@ const LearningPath = () => {
   const navigate = useNavigate();
   const { dashboardData: data } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
-  const [steps, setSteps] = useState([]);
-  const [loading, setLoading] = useState(true);
-  
   // Career Recommendation & Active Track
   const [recommendedCareer, setRecommendedCareer] = useState(null);
   const [selectedTrackId, setSelectedTrackId] = useState('Data & AI');
-  const [allSubjects, setAllSubjects] = useState([]);
 
   const completedModules = data?.completedModules || [];
 
@@ -546,75 +542,11 @@ const LearningPath = () => {
                             </span>
                           )}
                         </div>
-
-                        {/* Card Box */}
-                        <div 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (step.status !== 'terkunci') {
-                              navigate(`/materi/detail?id=${step.realId || 1}`);
-                            }
-                          }}
-                          className={`absolute w-60 p-4 rounded-2xl border transition-all duration-300 flex flex-col justify-between z-10 ${
-                            step.status === 'selesai'
-                              ? 'bg-white border-gray-100 shadow-sm hover:shadow-md cursor-pointer hover:border-emerald-200'
-                              : step.status === 'sedang'
-                              ? 'bg-white border-indigo-200 shadow-md ring-2 ring-indigo-500/10 cursor-pointer hover:shadow-lg'
-                              : 'bg-gray-50/80 border-gray-100 shadow-xs opacity-75 cursor-not-allowed'
-                          }`}
-                          style={{
-                            left: `${step.leftPercent}%`,
-                            transform: 'translateX(-50%)',
-                            ...(isTop 
-                              ? { bottom: '224px' } 
-                              : { top: '224px' }
-                            )
-                          }}
-                        >
-                          <div>
-                            <div className="flex items-center justify-between mb-2">
-                              <span className="text-[11px] font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-md">
-                                Modul {step.id}
-                              </span>
-                              {step.status === 'terkunci' ? (
-                                <Lock size={14} className="text-gray-400" />
-                              ) : step.status === 'selesai' ? (
-                                <Check size={14} className="text-emerald-500 stroke-[3]" />
-                              ) : (
-                                <Play size={12} className="text-indigo-600 fill-indigo-600" />
-                              )}
-                            </div>
-                            <h3 className="font-bold text-gray-900 text-sm mb-1 line-clamp-1">{step.title}</h3>
-                            <p className="text-[11px] text-gray-400 leading-relaxed mb-3 line-clamp-2">
-                              {step.description}
-                            </p>
-                          </div>
-
-                          {/* Status Badge */}
-                          <div className="pt-2 border-t border-gray-100 flex items-center justify-between">
-                            {step.status === 'selesai' && (
-                              <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                                <Check size={11} strokeWidth={3} /> Selesai
-                              </span>
-                            )}
-                            {step.status === 'sedang' && (
-                              <span className="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                                <Play size={9} className="fill-indigo-600" /> Sedang dipelajari
-                              </span>
-                            )}
-                            {step.status === 'terkunci' && (
-                              <span className="bg-gray-100 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                                <Lock size={10} /> Terkunci
-                              </span>
-                            )}
-                            <span className="text-[10px] text-gray-400 font-semibold">{step.duration || '15m'}</span>
-                          </div>
-                        </div>
-                      </React.Fragment>
-                    );
+                      </div>
+                    </React.Fragment>
+                  );
                   })}
                 </div>
-              )}
             </div>
           </div>
 
