@@ -250,6 +250,21 @@ const Login = () => {
               </>
             )}
           </button>
+
+          {/* Quick Demo Access Button */}
+          <button
+            type="button"
+            id="login-demo"
+            onClick={async () => {
+              setIsSubmitting(true);
+              await login('pelajar@isc.id', 'password123');
+              setIsSubmitting(false);
+              navigate('/dashboard');
+            }}
+            className="w-full bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold py-3 rounded-2xl transition-all flex items-center justify-center gap-2 cursor-pointer text-xs shadow-xs"
+          >
+            ⚡ Masuk Langsung (Mode Demo)
+          </button>
         </div>
       </form>
     </div>
