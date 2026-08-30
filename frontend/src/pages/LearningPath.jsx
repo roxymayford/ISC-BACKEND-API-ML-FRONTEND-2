@@ -111,7 +111,6 @@ const LearningPath = () => {
   const navigate = useNavigate();
   const { dashboardData: data } = useAuth();
   const [isFullscreen, setIsFullscreen] = useState(false);
-  // Career Recommendation & Active Track
   const [recommendedCareer, setRecommendedCareer] = useState(null);
   const [selectedTrackId, setSelectedTrackId] = useState('Data & AI');
 
@@ -204,6 +203,9 @@ const LearningPath = () => {
     ? activeStepIndex * (83 / (steps.length - 1))
     : (completedCount > 0 ? (completedCount - 1) * (83 / (steps.length - 1)) : 0);
 
+  // Active track metadata for selected career track
+  const activeTrackMeta = CAREER_TRACKS.find(t => t.id === selectedTrackId) || CAREER_TRACKS[0];
+
   return (
     <div className="flex h-screen bg-background overflow-hidden w-full text-left font-sans">
       <Sidebar user={data?.user} />
@@ -216,20 +218,6 @@ const LearningPath = () => {
           <p className="text-gray-500 font-medium text-xs sm:text-sm">
             Ikuti jalur belajar yang telah disesuaikan dengan hasil assessment kamu.
           </p>
-        </div>
-
-        {/* Hero Card Banner */}
-        <div 
-          className="rounded-3xl p-6 md:p-8 text-white shadow-md mb-8 flex flex-col md:flex-row justify-between items-start md:items-center gap-6 relative overflow-hidden"
-          style={{ background: 'linear-gradient(90deg, #4f46e5 0%, #6366f1 100%)' }}
-        >
-          {/* Left Side Info */}
-          <div className="z-10 flex-1">
-            <h2 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight text-white">Matematika Dasar</h2>
-            <p className="text-indigo-100 text-xs sm:text-sm font-medium">
-              Jalur rekomendasi • {steps.length} materi • Estimasi 3 jam 20 menit
-            </p>
-          </div>
         </div>
 
         {/* ─── Career Track Switcher Tabs ─────────────────────────────────── */}
