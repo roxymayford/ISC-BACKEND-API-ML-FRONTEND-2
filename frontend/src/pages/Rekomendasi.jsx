@@ -4,6 +4,8 @@ import Sidebar from '../components/Sidebar';
 import BottomSheetSelector from '../components/BottomSheetSelector';
 import { Sparkles, Plus, X, AlertCircle, ChevronRight, Briefcase, ChevronRightSquare } from 'lucide-react';
 
+const FLASK_API = import.meta.env.VITE_ML_API_URL || 'http://localhost:5000/api';
+
 export default function Rekomendasi() {
   const { user, dashboardData } = useAuth();
   
@@ -24,12 +26,14 @@ export default function Rekomendasi() {
   // Result state
   const [predictionResult, setPredictionResult] = useState(null);
 
-  // Fetch available items on mount
+  // Fetch available items & existing recommendation on mount
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const skillsRes = await fetch('http://localhost:5000/api/skills');
-        const interestsRes = await fetch('http://localhost:5000/api/interests');
+        const [skillsRes, interestsRes] = await Promise.all([
+          fetch(`${FLASK_API}/skills`),
+          fetch(`${FLASK_API}/interests`)
+        ]);
         
         if (skillsRes.ok) {
           const skillsData = await skillsRes.json();
@@ -42,13 +46,32 @@ export default function Rekomendasi() {
         }
       } catch (err) {
         console.error("Failed to fetch available data", err);
-        // We'll set some fallbacks for development if the backend isn't up
         setAvailableSkills(["Python", "JavaScript", "React", "Data Analysis", "Machine Learning", "UI/UX", "SQL", "DevOps"]);
         setAvailableInterests(["Web Development", "Artificial Intelligence", "Data Science", "Design", "Cybersecurity", "Cloud Computing"]);
       }
+
+      // Check if user has an existing saved recommendation
+      const activeUserId = user?.id || localStorage.getItem('user_id');
+      if (activeUserId) {
+        try {
+          const recRes = await fetch(`${FLASK_API}/recommendation/${activeUserId}`);
+          if (recRes.ok) {
+            const recJson = await recRes.json();
+            if (recJson.recommendation) {
+              const rec = recJson.recommendation;
+              if (rec.skills && rec.skills.length > 0) setSelectedSkills(rec.skills);
+              if (rec.interests && rec.interests.length > 0) setSelectedInterests(rec.interests);
+              setPredictionResult({
+                prediction: rec.top_career,
+                probabilities: rec.probabilities || {}
+              });
+            }
+          }
+        } catch (_) {}
+      }
     };
     fetchData();
-  }, []);
+  }, [user]);
 
   const totalSelected = selectedSkills.length + selectedInterests.length;
   const isSubmitReady = totalSelected >= 3;
@@ -69,7 +92,7 @@ export default function Rekomendasi() {
     setPredictionResult(null);
     
     try {
-      const response = await fetch('http://localhost:5000/api/predict', {
+      const response = await fetch(`${FLASK_API}/predict`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -86,24 +109,26 @@ export default function Rekomendasi() {
 
       const data = await response.json();
       setPredictionResult(data);
+
+      // Auto-save recommendation to database
+      const activeUserId = user?.id || localStorage.getItem('user_id');
+      if (activeUserId) {
+        try {
+          await fetch(`${FLASK_API}/save-recommendation`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              user_id: parseInt(activeUserId),
+              top_career: data.prediction,
+              skills: selectedSkills,
+              interests: selectedInterests,
+              probabilities: data.probabilities
+            })
+          });
+        } catch (_) {}
+      }
     } catch (err) {
       setError(err.message || 'Unable to connect to the recommendation engine.');
-      // Mock result for visual testing when backend is down
-      setTimeout(() => {
-        setPredictionResult({
-          prediction: "Software Development",
-          probabilities: {
-            "Data & AI": 0.15,
-            "Design": 0.05,
-            "Infrastructure & Security": 0.1,
-            "Product & Business": 0.05,
-            "Software Development": 0.65
-          }
-        });
-        setError(null);
-        setIsLoading(false);
-      }, 1500);
-      return; // return early to skip the finally block since we're mocking
     } finally {
       setIsLoading(false);
     }
@@ -123,18 +148,18 @@ export default function Rekomendasi() {
       <Sidebar user={user || dashboardData?.user} />
 
       {/* Main Content */}
-      <div className="flex-1 overflow-y-auto">
-        <div className="max-w-5xl mx-auto px-8 py-10">
+      <div className="flex-1 overflow-y-auto pt-20 md:pt-0">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 md:px-8 py-6 md:py-10 pb-28 md:pb-10">
           
           {/* Header */}
-          <div className="mb-10">
-            <h1 className="text-3xl font-bold text-gray-900 flex items-center gap-3">
+          <div className="mb-6 md:mb-10">
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 flex items-center gap-3">
               Rekomendasi Karir AI
               <div className="bg-indigo-100 p-2 rounded-xl">
                 <Sparkles className="text-indigo-600" size={24} />
               </div>
             </h1>
-            <p className="text-gray-500 mt-2 text-lg">
+            <p className="text-gray-500 mt-2 text-sm sm:text-base">
               Temukan jalur karir yang cocok berdasarkan keahlian dan minat kamu
             </p>
           </div>

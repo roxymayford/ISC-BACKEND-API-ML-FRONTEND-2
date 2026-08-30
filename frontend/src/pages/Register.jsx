@@ -4,9 +4,12 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useGoogleLogin } from '@react-oauth/google';
 import { useAuth } from '../context/AuthContext';
 
+const FLASK_API = import.meta.env.VITE_ML_API_URL || 'http://localhost:5000/api';
+const LARAVEL_API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+
 const Register = () => {
   const navigate = useNavigate();
-  const { login, register } = useAuth();
+  const { login, register, loginWithGoogleToken } = useAuth();
 
   const [username, setUsername]               = useState('');
   const [email, setEmail]                     = useState('');
@@ -19,6 +22,7 @@ const Register = () => {
   const [passwordError, setPasswordError]     = useState('');
   const [error, setError]                     = useState('');
   const [googleLoading, setGoogleLoading]     = useState(false);
+  const [isSubmitting, setIsSubmitting]       = useState(false);
 
   // ─── Email / Password Register ───────────────────────────────────────────
   const handleRegister = async (e) => {
@@ -47,31 +51,14 @@ const Register = () => {
     }
     if (hasError) return;
 
-    try {
-      const response = await fetch('http://127.0.0.1:8000/api/register', {
-        method:  'POST',
-        headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-        body:    JSON.stringify({ name: username, email, password }),
-      });
+    setIsSubmitting(true);
+    const result = await register(username, email, password);
+    setIsSubmitting(false);
 
-      const result = await response.json();
-
-      if (response.ok) {
-        localStorage.setItem('user_id', result.user.id);
-        login(email, password);
-        navigate('/career-onboarding');
-      } else {
-        setError(result.message || 'Email sudah terdaftar atau registrasi gagal');
-      }
-    } catch (_) {
-      // Fallback: local register
-      const ok = register(username, email, password);
-      if (ok) {
-        login(email, password);
-        navigate('/career-onboarding');
-      } else {
-        setError('Email sudah terdaftar');
-      }
+    if (result && result.success) {
+      navigate('/career-onboarding');
+    } else {
+      setError(result?.error || 'Email sudah terdaftar atau registrasi gagal.');
     }
   };
 
@@ -85,25 +72,22 @@ const Register = () => {
         const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
           headers: { Authorization: `Bearer ${tokenResponse.access_token}` },
         });
+
+        if (!userInfoRes.ok) {
+          throw new Error('Gagal mengambil data profil Google');
+        }
+
         const userInfo = await userInfoRes.json();
+        const result = await loginWithGoogleToken(tokenResponse.access_token, userInfo);
 
-        const flaskRes = await fetch('http://localhost:5000/api/auth/google-token', {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({
-            access_token: tokenResponse.access_token,
-            user_info:    userInfo,
-          }),
-        });
-
-        if (flaskRes.ok) {
-          const data = await flaskRes.json();
-          localStorage.setItem('googleUser', JSON.stringify(data.user));
-          localStorage.setItem('user_id', String(data.user.id));
-          // New user → always go to onboarding; existing → dashboard
-          window.location.href = data.is_new_user ? '/career-onboarding' : '/dashboard';
+        if (result && result.success) {
+          if (result.is_new_user || !result.has_recommendation) {
+            navigate('/career-onboarding');
+          } else {
+            navigate('/dashboard');
+          }
         } else {
-          throw new Error('Server error');
+          setError(result?.error || 'Pendaftaran dengan Google gagal');
         }
       } catch (err) {
         setError('Gagal daftar dengan Google. Coba lagi.');
@@ -112,8 +96,13 @@ const Register = () => {
         setGoogleLoading(false);
       }
     },
-    onError: () => {
+    onError: (errorResponse) => {
+      console.error('Google register error:', errorResponse);
       setError('Registrasi Google dibatalkan atau gagal.');
+      setGoogleLoading(false);
+    },
+    onNonOAuthError: (nonOAuthError) => {
+      console.warn('Google register non-OAuth error:', nonOAuthError);
       setGoogleLoading(false);
     },
     flow: 'implicit',
@@ -152,10 +141,9 @@ const Register = () => {
               onChange={(e) => setUsername(e.target.value)}
               className={`w-full pl-12 pr-4 py-3.5 bg-gray-100/80 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 outline-none transition-all placeholder-gray-400 ${
                 usernameError
-                  ? 'border-2 border-red-500 text-red-600 focus:ring-red-200'
-                  : 'border-transparent text-gray-800 focus:border-primary focus:ring-primary/20'
+                  ? 'border-2 border-red-400 focus:ring-red-200'
+                  : 'border border-transparent focus:ring-primary/20'
               }`}
-              required
             />
           </div>
           {usernameError && <p className="text-red-500 text-xs font-bold mt-1.5 ml-2">{usernameError}</p>}
@@ -175,10 +163,9 @@ const Register = () => {
               onChange={(e) => setEmail(e.target.value)}
               className={`w-full pl-12 pr-4 py-3.5 bg-gray-100/80 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 outline-none transition-all placeholder-gray-400 ${
                 emailError
-                  ? 'border-2 border-red-500 text-red-600 focus:ring-red-200'
-                  : 'border-transparent text-gray-800 focus:border-primary focus:ring-primary/20'
+                  ? 'border-2 border-red-400 focus:ring-red-200'
+                  : 'border border-transparent focus:ring-primary/20'
               }`}
-              required
             />
           </div>
           {emailError && <p className="text-red-500 text-xs font-bold mt-1.5 ml-2">{emailError}</p>}
@@ -198,12 +185,15 @@ const Register = () => {
               onChange={(e) => setPassword(e.target.value)}
               className={`w-full pl-12 pr-12 py-3.5 bg-gray-100/80 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 outline-none transition-all placeholder-gray-400 ${
                 passwordError
-                  ? 'border-2 border-red-500 text-red-600 focus:ring-red-200'
-                  : 'border-transparent text-gray-800 focus:border-primary focus:ring-primary/20'
+                  ? 'border-2 border-red-400 focus:ring-red-200'
+                  : 'border border-transparent focus:ring-primary/20'
               }`}
-              required
             />
-            <button type="button" onClick={() => setShowPass(!showPass)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors">
+            <button
+              type="button"
+              onClick={() => setShowPass(!showPass)}
+              className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            >
               {showPass ? <EyeOff size={18} strokeWidth={2.5} /> : <Eye size={18} strokeWidth={2.5} />}
             </button>
           </div>
@@ -213,7 +203,7 @@ const Register = () => {
         {/* Confirm Password */}
         <div>
           <div className="relative">
-            <div className={`absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none ${passwordError ? 'text-red-500' : 'text-gray-800'}`}>
+            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-gray-800">
               <Lock size={18} strokeWidth={2.5} />
             </div>
             <input
@@ -222,14 +212,13 @@ const Register = () => {
               placeholder="Confirm Password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className={`w-full pl-12 pr-12 py-3.5 bg-gray-100/80 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 outline-none transition-all placeholder-gray-400 ${
-                passwordError
-                  ? 'border-2 border-red-500 text-red-600 focus:ring-red-200'
-                  : 'border-transparent text-gray-800 focus:border-primary focus:ring-primary/20'
-              }`}
-              required
+              className="w-full pl-12 pr-12 py-3.5 bg-gray-100/80 rounded-xl text-sm font-medium focus:bg-white focus:ring-2 outline-none transition-all placeholder-gray-400 border border-transparent focus:ring-primary/20"
             />
-            <button type="button" onClick={() => setShowConfirm(!showConfirm)} className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors">
+            <button
+              type="button"
+              onClick={() => setShowConfirm(!showConfirm)}
+              className="absolute inset-y-0 right-0 pr-4 flex items-center text-gray-400 hover:text-gray-600 transition-colors"
+            >
               {showConfirm ? <EyeOff size={18} strokeWidth={2.5} /> : <Eye size={18} strokeWidth={2.5} />}
             </button>
           </div>
@@ -242,7 +231,7 @@ const Register = () => {
             id="register-submit"
             className="w-full bg-[#4232c2] hover:bg-[#3426a1] text-white font-semibold py-3.5 rounded-2xl transition-all shadow-md hover:shadow-lg hover:shadow-indigo-200 active:scale-[0.98]"
           >
-            Create account
+            Create Account
           </button>
 
           {/* Divider */}
@@ -270,7 +259,7 @@ const Register = () => {
                 <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/>
               </svg>
             )}
-            {googleLoading ? 'Memproses...' : 'Sign up with Google'}
+            {googleLoading ? 'Memproses pendaftaran Google...' : 'Sign up with Google'}
           </button>
         </div>
       </form>

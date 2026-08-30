@@ -4,7 +4,7 @@ const DailyTargetCard = ({ target }) => {
   // SVG Circle calculations for progress
   const radius = 50;
   const circumference = 2 * Math.PI * radius;
-  const progressRatio = target.currentMinutes / target.targetMinutes;
+  const progressRatio = target.currentMinutes / (target.targetMinutes || 1);
   const strokeDashoffset = circumference - (progressRatio * circumference);
 
   return (

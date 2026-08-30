@@ -210,7 +210,7 @@ const Quiz = () => {
     <div className="flex h-screen bg-background overflow-hidden w-full text-left">
       <Sidebar user={data.user} />
       
-      <main className="flex-1 overflow-y-auto p-8 lg:p-10">
+      <main className="flex-1 overflow-y-auto pt-20 md:pt-8 pb-24 md:pb-10 px-4 sm:px-6 md:px-8 lg:p-10">
         
         {/* Header */}
         <div className="mb-6">

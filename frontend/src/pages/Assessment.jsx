@@ -15,6 +15,9 @@ import {
   Sparkles
 } from 'lucide-react';
 
+const FLASK_API = import.meta.env.VITE_ML_API_URL || 'http://localhost:5000/api';
+const LARAVEL_API = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000/api';
+
 const assessmentData = [
   {
     step: 1,
@@ -257,7 +260,7 @@ const Assessment = () => {
 
       // 3. Kirim MURNI HASIL PILIHAN USER ke Laravel
       try {
-        const response = await fetch('http://127.0.0.1:8000/api/profile', {
+        const response = await fetch(`${LARAVEL_API}/profile`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   CalendarCheck, 
   BookOpenCheck, 
@@ -9,83 +9,106 @@ import {
 import Sidebar from '../components/Sidebar';
 import { useAuth } from '../context/AuthContext';
 
+const FLASK_API = import.meta.env.VITE_ML_API_URL || 'http://localhost:5000/api';
+
+const SUBJECT_COLORS = ['#4232c2', '#ea580c', '#0d9488', '#9333ea', '#2563eb', '#16a34a'];
+
 const Progress = () => {
   const { dashboardData: data } = useAuth();
+  const [subjectsList, setSubjectsList] = useState([]);
+  const [loading, setLoading] = useState(true);
 
-  const completedModulesCount = data.completedModules?.length || 0;
-  const isModule1Completed = data.completedModules?.includes(1);
-  const streakCount = data.stats?.find(s => s.id === 3)?.value || "0";
-  const targetMinutes = data.dailyTarget?.targetMinutes || 30;
-  const currentMinutes = data.dailyTarget?.currentMinutes || 0;
-  const targetPercent = Math.min(Math.round((currentMinutes / targetMinutes) * 100), 100);
+  const completedModules = data.completedModules || [];
+  const completedModulesCount = completedModules.length;
+  const streakCount = data.stats?.find(s => s.id === 3)?.value || "1";
+  const targetMinutes = data.dailyTarget?.targetMinutes || 60;
+  const currentMinutes = data.dailyTarget?.currentMinutes || (completedModulesCount * 15);
+  const targetPercent = Math.min(Math.round((currentMinutes / Math.max(targetMinutes, 1)) * 100), 100);
+  const completedQuizzesCount = data.completedQuizzes?.length || 0;
+  const quizXp = data.quizXp || 0;
+  const averageQuizScore = completedQuizzesCount > 0 ? Math.min(Math.round(quizXp / (completedQuizzesCount * 10)), 100) : (completedModulesCount > 0 ? 85 : 0);
 
-  const barChartData = [
-    { day: 'Sen', value: 0 },
-    { day: 'Sel', value: 0 },
-    { day: 'Rab', value: 0 },
-    { day: 'Kam', value: 0 },
-    { day: 'Jum', value: 0 },
-    { day: 'Sab', value: isModule1Completed ? 1 : 0, active: true },
-    { day: 'Min', value: 0 },
-  ];
+  useEffect(() => {
+    const fetchSubjects = async () => {
+      try {
+        const res = await fetch(`${FLASK_API}/subjects`);
+        if (res.ok) {
+          const json = await res.json();
+          if (json.subjects && json.subjects.length > 0) {
+            const mapped = json.subjects.map((s, idx) => {
+              const modules = s.modules || [];
+              const totalInSub = modules.length;
+              const completedInSub = modules.filter(m => completedModules.includes(m.id)).length;
+              const percentage = totalInSub > 0 ? Math.round((completedInSub / totalInSub) * 100) : 0;
+              const color = SUBJECT_COLORS[idx % SUBJECT_COLORS.length];
 
+              return {
+                name: s.title,
+                completed: completedInSub,
+                total: totalInSub,
+                percentage,
+                trend: percentage > 0 ? `+${percentage}%` : '0%',
+                trendUp: percentage > 0,
+                color,
+              };
+            });
+            setSubjectsList(mapped);
+            setLoading(false);
+            return;
+          }
+        }
+      } catch (err) {
+        console.warn('Could not fetch dynamic subjects in Progress:', err);
+      }
 
+      // Fallback
+      setSubjectsList([
+        { name: 'Aljabar Linear', completed: completedModules.filter(id => [1, 2, 3].includes(id)).length, total: 3, percentage: Math.round((completedModules.filter(id => [1, 2, 3].includes(id)).length / 3) * 100), trend: '+33%', trendUp: true, color: '#4232c2' },
+        { name: 'Teori Graf', completed: completedModules.filter(id => [4, 5].includes(id)).length, total: 2, percentage: Math.round((completedModules.filter(id => [4, 5].includes(id)).length / 2) * 100), trend: '0%', trendUp: true, color: '#ea580c' },
+        { name: 'Probabilitas & Statistika', completed: completedModules.filter(id => [6, 7].includes(id)).length, total: 2, percentage: Math.round((completedModules.filter(id => [6, 7].includes(id)).length / 2) * 100), trend: '0%', trendUp: true, color: '#0d9488' },
+        { name: 'Kalkulus Dasar', completed: completedModules.filter(id => [8].includes(id)).length, total: 1, percentage: Math.round((completedModules.filter(id => [8].includes(id)).length / 1) * 100), trend: '0%', trendUp: true, color: '#9333ea' },
+      ]);
+      setLoading(false);
+    };
 
-  const subjects = [
-    {
-      name: 'Matematika',
-      completed: isModule1Completed ? 1 : 0,
-      percentage: isModule1Completed ? 100 : 0, // Since only 1 module exists in Mathematics right now, 1 = 100%
-      trend: isModule1Completed ? '+100%' : '0%',
-      trendUp: true,
-      color: '#4232c2', // blue/indigo
-    },
-    {
-      name: 'Bahasa Indonesia',
-      completed: 0,
-      percentage: 0,
-      trend: '0%',
-      trendUp: true,
-      color: '#ea580c', // orange
-    },
-    {
-      name: 'Fisika',
-      completed: 0,
-      percentage: 0,
-      trend: '0%',
-      trendUp: true,
-      color: '#0d9488', // teal
-    },
-    {
-      name: 'Ilmu Pengetahuan Sosial',
-      completed: 0,
-      percentage: 0,
-      trend: '0%',
-      trendUp: true,
-      color: '#9333ea', // purple
-    },
-  ];
+    fetchSubjects();
+  }, [completedModules.length]);
+
+  const daysOfWeek = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+  const todayDayIdx = new Date().getDay();
+
+  const barChartData = daysOfWeek.map((day, idx) => {
+    const isToday = idx === todayDayIdx;
+    return {
+      day,
+      value: isToday ? Math.max(1, completedModulesCount) : (idx < todayDayIdx ? Math.max(0, completedModulesCount - (todayDayIdx - idx)) : 0),
+      active: isToday,
+    };
+  });
+
+  const subjects = subjectsList;
+  const consistencyPercent = Math.min(Math.round((parseInt(streakCount || '1') / 7) * 100), 100);
 
   return (
-    <div className="flex h-screen bg-background overflow-hidden w-full text-left">
+    <div className="flex h-screen bg-background overflow-hidden w-full text-left font-sans">
       <Sidebar user={data.user} />
       
-      <main className="flex-1 overflow-y-auto p-8 lg:p-10">
+      <main className="flex-1 overflow-y-auto pt-20 md:pt-8 pb-24 md:pb-10 px-4 sm:px-6 md:px-8 lg:p-10">
         
         {/* Header */}
-        <div className="flex justify-between items-start mb-8">
+        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 md:mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900 tracking-tight mb-2">Progress Belajar</h1>
-            <p className="text-gray-500 font-medium text-sm">Pantau perkembangan belajarmu minggu ini</p>
+            <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 tracking-tight mb-1">Progress Belajar</h1>
+            <p className="text-gray-500 font-medium text-xs sm:text-sm">Pantau perkembangan belajarmu minggu ini</p>
           </div>
-          <div className="flex bg-white rounded-xl shadow-sm p-1 border border-gray-100">
-            <button className="px-6 py-2 bg-[#4232c2] text-white text-sm font-bold rounded-lg shadow-sm">
+          <div className="flex bg-white rounded-xl shadow-xs p-1 border border-gray-100 self-stretch sm:self-auto justify-center">
+            <button className="flex-1 sm:flex-none px-4 sm:px-6 py-2 bg-[#4232c2] text-white text-xs sm:text-sm font-bold rounded-lg shadow-xs">
               7 Hari
             </button>
-            <button className="px-6 py-2 text-gray-500 hover:text-gray-900 text-sm font-semibold rounded-lg transition-colors">
+            <button className="flex-1 sm:flex-none px-4 sm:px-6 py-2 text-gray-500 hover:text-gray-900 text-xs sm:text-sm font-semibold rounded-lg transition-colors">
               30 Hari
             </button>
-            <button className="px-6 py-2 text-gray-500 hover:text-gray-900 text-sm font-semibold rounded-lg transition-colors">
+            <button className="flex-1 sm:flex-none px-4 sm:px-6 py-2 text-gray-500 hover:text-gray-900 text-xs sm:text-sm font-semibold rounded-lg transition-colors">
               3 Bulan
             </button>
           </div>
@@ -184,10 +207,10 @@ const Progress = () => {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-semibold text-gray-600">Konsistensi</span>
-                  <span className="text-sm font-bold text-[#4232c2]">0%</span>
+                  <span className="text-sm font-bold text-[#4232c2]">{consistencyPercent}%</span>
                 </div>
                 <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-[#4232c2] rounded-full" style={{ width: '0%' }}></div>
+                  <div className="h-full bg-[#4232c2] rounded-full transition-all duration-1000" style={{ width: `${consistencyPercent}%` }}></div>
                 </div>
               </div>
 
@@ -204,17 +227,21 @@ const Progress = () => {
               <div>
                 <div className="flex justify-between items-center mb-2">
                   <span className="text-sm font-semibold text-gray-600">Nilai Rata-rata</span>
-                  <span className="text-sm font-bold text-orange-500">0%</span>
+                  <span className="text-sm font-bold text-orange-500">{averageQuizScore}%</span>
                 </div>
                 <div className="h-2.5 w-full bg-gray-100 rounded-full overflow-hidden">
-                  <div className="h-full bg-orange-500 rounded-full" style={{ width: '0%' }}></div>
+                  <div className="h-full bg-orange-500 rounded-full transition-all duration-1000" style={{ width: `${averageQuizScore}%` }}></div>
                 </div>
               </div>
             </div>
 
             <div className="mt-8 bg-gray-50 rounded-xl p-4 flex items-center gap-3">
-              <Award className="text-gray-400" size={20} />
-              <span className="text-sm font-bold text-gray-500">Ayo mulai belajarmu minggu ini!</span>
+              <Award className="text-[#4232c2]" size={20} />
+              <span className="text-sm font-bold text-gray-700">
+                {completedModulesCount > 0 
+                  ? `Hebat! Kamu telah menyelesaikan ${completedModulesCount} materi.` 
+                  : 'Ayo mulai selesaikan materi pertamamu hari ini!'}
+              </span>
             </div>
           </div>
 
