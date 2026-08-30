@@ -1,5 +1,9 @@
 # ─────────────────────────────────────────────────────────────────────────────
+<<<<<<< HEAD
 # BACKEND APP.PY - WITH USER PROGRESS, ML RECS & ADMIN MATERI MANAGEMENT
+=======
+# BACKEND APP.PY - UPDATED FOR PRODUCTION & USER PROGRESS
+>>>>>>> 15a19f5 (refactor(backend): update app.py and requirements.txt for production readiness)
 # ─────────────────────────────────────────────────────────────────────────────
 
 import os
@@ -15,6 +19,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 from google.oauth2 import id_token
 from google.auth.transport import requests as google_requests
 
+<<<<<<< HEAD
 # ─── Load Environment Variables ──────────────────────────────────────────────
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 try:
@@ -34,9 +39,12 @@ ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "kelompok9")
 PORT = int(os.getenv("PORT", 5000))
 
 
+=======
+# ─── Config (Dinamis dari .env) ─────────────────────────────────────────────
+>>>>>>> 15a19f5 (refactor(backend): update app.py and requirements.txt for production readiness)
 app = Flask(__name__)
-CORS(app, resources={r"/api/*": {"origins": "*"}})
 
+<<<<<<< HEAD
 # Database configuration: support Cloud DB via DATABASE_URL or fallback to local SQLite
 DATABASE_URL = os.getenv("DATABASE_URL")
 if DATABASE_URL:
@@ -46,6 +54,24 @@ if DATABASE_URL:
 else:
     app.config['SQLALCHEMY_DATABASE_URI'] = f"sqlite:///{os.path.join(BASE_DIR, 'learning_path.db')}"
 
+=======
+# Load Google Client ID dari Environment Variable
+GOOGLE_CLIENT_ID = os.getenv("GOOGLE_CLIENT_ID", "244826909624-055j98h4rd5m8m9ruvami0invr46muof.apps.googleusercontent.com")
+
+# Konfigurasi CORS Presisi (Membaca FRONTEND_URL dari .env)
+frontend_origin = os.getenv("FRONTEND_URL", "http://localhost:5173")
+CORS(app, resources={r"/api/*": {"origins": [frontend_origin, "http://localhost:5173", "http://localhost:3000"]}})
+
+# Konfigurasi Database (Mendukung PostgreSQL Cloud & Fallback SQLite Lokal)
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_DB = f"sqlite:///{os.path.join(BASE_DIR, 'learning_path.db')}"
+DATABASE_URL = os.getenv("DATABASE_URL", DEFAULT_DB)
+
+# Supabase PostgreSQL Fix (Ubah prefix postgres:// ke postgresql:// jika ada)
+if DATABASE_URL.startswith("postgres://"):
+    DATABASE_URL = DATABASE_URL.replace("postgres://", "postgresql://", 1)
+
+app.config['SQLALCHEMY_DATABASE_URI'] = DATABASE_URL
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 
@@ -1206,4 +1232,10 @@ def predict():
 
 
 if __name__ == '__main__':
+<<<<<<< HEAD
     app.run(debug=True, host='0.0.0.0', port=PORT)
+=======
+    port = int(os.getenv("PORT", 5000))
+    debug = os.getenv("FLASK_ENV") != "production"
+    app.run(host="0.0.0.0", port=port, debug=debug)
+>>>>>>> 15a19f5 (refactor(backend): update app.py and requirements.txt for production readiness)
