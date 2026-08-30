@@ -1,10 +1,8 @@
-import React, { useRef, useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Check, 
   Play, 
   Lock, 
-  ChevronLeft, 
-  ChevronRight, 
   ArrowRight,
   Maximize,
   Minimize
@@ -16,9 +14,6 @@ import { useAuth } from '../context/AuthContext';
 const LearningPath = () => {
   const navigate = useNavigate();
   const { dashboardData: data } = useAuth();
-  const scrollRef = useRef(null);
-  const containerRef = useRef(null);
-  const [scrollProgress, setScrollProgress] = useState(0);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   const toggleFullscreen = () => {
@@ -37,23 +32,6 @@ const LearningPath = () => {
     };
   }, [isFullscreen]);
 
-  const handleScroll = () => {
-    if (scrollRef.current) {
-      const { scrollLeft, scrollWidth, clientWidth } = scrollRef.current;
-      const maxScroll = scrollWidth - clientWidth;
-      if (maxScroll > 0) {
-        setScrollProgress((scrollLeft / maxScroll) * 100);
-      }
-    }
-  };
-
-  const scroll = (direction) => {
-    if (scrollRef.current) {
-      const scrollAmount = direction === 'left' ? -400 : 400;
-      scrollRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
-    }
-  };
-
   const steps = [
     {
       id: '01',
@@ -61,7 +39,6 @@ const LearningPath = () => {
       description: 'Konsep dasar bilangan dan operasi hitung.',
       status: 'selesai',
       position: 'top',
-      leftPercent: 7,
     },
     {
       id: '02',
@@ -69,7 +46,6 @@ const LearningPath = () => {
       description: 'Variabel, ekspresi dan operasi aljabar.',
       status: 'selesai',
       position: 'bottom',
-      leftPercent: 20,
     },
     {
       id: '03',
@@ -77,7 +53,6 @@ const LearningPath = () => {
       description: 'Menyelesaikan persamaan dan memahami grafik.',
       status: 'sedang',
       position: 'top',
-      leftPercent: 33,
     },
     {
       id: '04',
@@ -85,7 +60,6 @@ const LearningPath = () => {
       description: 'Pahami hubungan antar variabel dan fungsi.',
       status: 'terkunci',
       position: 'bottom',
-      leftPercent: 46,
     },
     {
       id: '05',
@@ -93,7 +67,6 @@ const LearningPath = () => {
       description: 'Sinus, cosinus dan penerapannya.',
       status: 'terkunci',
       position: 'top',
-      leftPercent: 59,
     },
     {
       id: '06',
@@ -101,7 +74,6 @@ const LearningPath = () => {
       description: 'Operasi matriks, determinan dan vektor.',
       status: 'terkunci',
       position: 'bottom',
-      leftPercent: 72,
     },
     {
       id: '07',
@@ -109,7 +81,6 @@ const LearningPath = () => {
       description: 'Konsep turunan, limit, dan integral dasar.',
       status: 'terkunci',
       position: 'top',
-      leftPercent: 85,
     },
     {
       id: '08',
@@ -117,13 +88,18 @@ const LearningPath = () => {
       description: 'Teori peluang, statistik dan interpretasi data.',
       status: 'terkunci',
       position: 'bottom',
-      leftPercent: 95,
     },
   ];
 
   const completedCount = steps.filter(s => s.status === 'selesai').length;
   const remainingCount = steps.length - completedCount;
   const progressPercent = 58;
+
+  // Find index of current step for active timeline line length
+  const activeStepIndex = steps.findIndex(s => s.status === 'sedang');
+  const activeLineWidthPercent = activeStepIndex !== -1 
+    ? activeStepIndex * (83 / (steps.length - 1))
+    : (completedCount > 0 ? (completedCount - 1) * (83 / (steps.length - 1)) : 0);
 
   return (
     <div className="flex h-screen bg-background overflow-hidden w-full text-left">
@@ -148,7 +124,7 @@ const LearningPath = () => {
           <div className="z-10 flex-1">
             <h2 className="text-2xl md:text-3xl font-extrabold mb-2 tracking-tight text-white">Matematika Dasar</h2>
             <p className="text-indigo-100 text-xs sm:text-sm font-medium">
-              Jalur rekomendasi • 5 materi • Estimasi 3 jam 20 menit
+              Jalur rekomendasi • {steps.length} materi • Estimasi 3 jam 20 menit
             </p>
           </div>
 
@@ -175,14 +151,13 @@ const LearningPath = () => {
 
         {/* Section Perjalanan Belajarmu */}
         <div 
-          ref={containerRef}
-          className={`mb-8 transition-all duration-300 ${
+          className={`transition-all duration-300 ${
             isFullscreen 
-              ? 'fixed inset-0 z-50 bg-white p-6 md:p-10 flex flex-col justify-between overflow-hidden w-screen h-screen' 
-              : 'relative'
+              ? 'fixed inset-0 z-50 bg-white p-6 md:p-12 flex flex-col justify-center gap-6 overflow-y-auto w-screen h-screen' 
+              : 'relative mb-8'
           }`}
         >
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-5">
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-2 shrink-0">
             <div>
               <h2 className="text-lg md:text-xl font-bold text-gray-900 mb-0.5">Perjalanan Belajarmu</h2>
               <p className="text-xs sm:text-sm text-gray-400 font-medium">
@@ -224,56 +199,78 @@ const LearningPath = () => {
             </div>
           </div>
 
-          {/* Stepper Roadmap Container */}
-          <div 
-            onClick={() => !isFullscreen && toggleFullscreen()}
-            className={`bg-white rounded-3xl p-6 border border-gray-100 relative transition-all ${
-              isFullscreen 
-                ? 'flex-1 flex flex-col justify-between my-auto border-0 shadow-none p-2' 
-                : 'shadow-sm hover:shadow-md cursor-pointer group'
-            }`}
-          >
-            {/* Click to Fullscreen Badge overlay indicator for normal mode */}
-            {!isFullscreen && (
-              <div className="absolute top-3 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 z-30 shadow-xs pointer-events-none">
-                <Maximize size={12} /> Klik area untuk Fullscreen
-              </div>
-            )}
-
-            {/* Scrollable Canvas area with 8 extended steps */}
+          {/* Stepper Roadmap Container (All 8 Steps Visible At Once) */}
+          
+          {/* Desktop Horizontal Timeline (100% Fluid Width) */}
+          <div className="hidden sm:block">
             <div 
-              ref={scrollRef}
-              onScroll={handleScroll}
-              className="overflow-x-auto scrollbar-none flex-1 flex items-center"
+              onClick={() => !isFullscreen && toggleFullscreen()}
+              className={`bg-white rounded-3xl border border-gray-100 relative transition-all ${
+                isFullscreen 
+                  ? 'shadow-lg p-6 md:p-8 border-gray-200/80' 
+                  : 'shadow-sm hover:shadow-md cursor-pointer group p-4 md:p-6'
+              }`}
             >
-              <div 
-                className="relative w-full" 
-                style={{ height: '400px', minWidth: '1750px' }}
-              >
+              {/* Click to Fullscreen Badge overlay indicator */}
+              {!isFullscreen && (
+                <div className="absolute top-3 right-4 opacity-0 group-hover:opacity-100 transition-opacity bg-indigo-600 text-white text-[11px] font-bold px-2.5 py-1 rounded-full flex items-center gap-1 z-30 shadow-xs pointer-events-none">
+                  <Maximize size={12} /> Klik area untuk Fullscreen
+                </div>
+              )}
+
+              {/* Canvas area 100% width - Vertically Centered */}
+              <div className="relative w-full overflow-hidden" style={{ height: '360px' }}>
                 
                 {/* Background Connecting Line */}
                 <div 
-                  className="absolute h-1 bg-gray-200 z-0"
-                  style={{ top: '200px', left: '7%', right: '5%', transform: 'translateY(-50%)' }}
+                  className="absolute h-1 bg-gray-200 z-0 rounded-full"
+                  style={{ 
+                    top: '180px', 
+                    left: '8.5%', 
+                    right: '8.5%', 
+                    transform: 'translateY(-50%)' 
+                  }}
                 ></div>
                 
                 {/* Active Colored Progress Line */}
                 <div 
-                  className="absolute h-1 bg-gradient-to-r from-emerald-500 via-emerald-500 to-indigo-600 z-0 transition-all duration-500"
-                  style={{ top: '200px', left: '7%', width: '26%', transform: 'translateY(-50%)' }}
+                  className="absolute h-1 bg-gradient-to-r from-emerald-500 via-emerald-500 to-indigo-600 z-0 transition-all duration-500 rounded-full"
+                  style={{ 
+                    top: '180px', 
+                    left: '8.5%', 
+                    width: `${activeLineWidthPercent}%`, 
+                    transform: 'translateY(-50%)' 
+                  }}
                 ></div>
 
-                {steps.map((step) => {
+                {steps.map((step, idx) => {
                   const isTop = step.position === 'top';
+                  const nodeLeftPercent = 8.5 + idx * (83 / (steps.length - 1));
 
                   return (
                     <React.Fragment key={step.id}>
+                      {/* Vertical connector line stem */}
+                      <div 
+                        className={`absolute w-0.5 z-0 ${
+                          step.status === 'selesai' ? 'bg-emerald-300' :
+                          step.status === 'sedang' ? 'bg-indigo-300' : 'bg-gray-200'
+                        }`}
+                        style={{
+                          left: `${nodeLeftPercent}%`,
+                          transform: 'translateX(-50%)',
+                          ...(isTop 
+                            ? { top: '135px', height: '35px' } 
+                            : { top: '190px', height: '35px' }
+                          )
+                        }}
+                      ></div>
+
                       {/* Node Circle on Line */}
                       <div 
                         className="absolute z-20 flex items-center justify-center pointer-events-none"
                         style={{ 
-                          top: '200px', 
-                          left: `${step.leftPercent}%`, 
+                          top: '180px', 
+                          left: `${nodeLeftPercent}%`, 
                           transform: 'translate(-50%, -50%)' 
                         }}
                       >
@@ -303,52 +300,54 @@ const LearningPath = () => {
                           e.stopPropagation();
                           if (step.status !== 'terkunci') navigate('/materi/detail');
                         }}
-                        className={`absolute w-56 p-4 rounded-2xl border transition-all duration-300 flex flex-col justify-between z-10 ${
+                        className={`absolute w-[11.8%] min-w-[125px] max-w-[210px] p-3 sm:p-3.5 rounded-2xl border transition-all duration-300 flex flex-col justify-between z-10 ${
                           step.status === 'selesai'
-                            ? 'bg-white border-gray-100 shadow-sm hover:shadow-md cursor-pointer'
+                            ? 'bg-white border-gray-100 shadow-sm hover:shadow-md cursor-pointer hover:-translate-y-1'
                             : step.status === 'sedang'
-                            ? 'bg-white border-indigo-200 shadow-md ring-2 ring-indigo-500/10 cursor-pointer'
-                            : 'bg-gray-50/80 border-gray-100 shadow-xs opacity-75 cursor-not-allowed'
+                            ? 'bg-white border-indigo-200 shadow-md ring-2 ring-indigo-500/10 cursor-pointer hover:-translate-y-1'
+                            : 'bg-gray-50/80 border-gray-100 shadow-xs opacity-80 cursor-not-allowed'
                         }`}
                         style={{
-                          left: `${step.leftPercent}%`,
+                          left: `${nodeLeftPercent}%`,
                           transform: 'translateX(-50%)',
                           ...(isTop 
-                            ? { bottom: '224px' } 
-                            : { top: '224px' }
+                            ? { bottom: '200px' } 
+                            : { top: '200px' }
                           )
                         }}
                       >
                         <div>
-                          <div className="flex items-center justify-between mb-2">
-                            <span className="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                          <div className="flex items-center justify-between mb-1.5">
+                            <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-1.5 py-0.5 rounded-md">
                               {step.id}
                             </span>
                             {step.status === 'terkunci' && (
-                              <Lock size={14} className="text-gray-400" />
+                              <Lock size={12} className="text-gray-400" />
                             )}
                           </div>
-                          <h3 className="font-bold text-gray-900 text-sm mb-1">{step.title}</h3>
-                          <p className="text-[11px] text-gray-400 leading-relaxed mb-3 line-clamp-2">
+                          <h3 className="font-bold text-gray-900 text-xs sm:text-sm mb-1 text-left break-words line-clamp-1" title={step.title}>
+                            {step.title}
+                          </h3>
+                          <p className="text-[10px] sm:text-[11px] text-gray-400 leading-tight mb-2 text-left break-words line-clamp-2">
                             {step.description}
                           </p>
                         </div>
 
                         {/* Status Badge */}
-                        <div className="pt-2 border-t border-gray-100 flex items-center">
+                        <div className="pt-1.5 border-t border-gray-100 flex items-center justify-between">
                           {step.status === 'selesai' && (
-                            <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                              <Check size={11} strokeWidth={3} /> Selesai
+                            <span className="bg-emerald-50 text-emerald-600 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                              <Check size={10} strokeWidth={3} /> Selesai
                             </span>
                           )}
                           {step.status === 'sedang' && (
-                            <span className="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                              <Play size={9} className="fill-indigo-600" /> Sedang dipelajari
+                            <span className="bg-indigo-50 text-indigo-600 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                              <Play size={8} className="fill-indigo-600" /> Sedang dipelajari
                             </span>
                           )}
                           {step.status === 'terkunci' && (
-                            <span className="bg-gray-100 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
-                              <Lock size={10} /> Terkunci
+                            <span className="bg-gray-100 text-gray-400 text-[9px] sm:text-[10px] font-bold px-1.5 py-0.5 rounded-md flex items-center gap-1">
+                              <Lock size={9} /> Terkunci
                             </span>
                           )}
                         </div>
@@ -358,36 +357,78 @@ const LearningPath = () => {
                 })}
               </div>
             </div>
+          </div>
 
-            {/* Dynamic Footer Scroll Bar & Controls */}
-            <div 
-              onClick={(e) => e.stopPropagation()} 
-              className="flex items-center justify-between pt-4 mt-2 border-t border-gray-100"
-            >
-              <button 
-                onClick={() => scroll('left')} 
-                className="p-2 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
-                title="Geser Kiri"
-              >
-                <ChevronLeft size={20} />
-              </button>
+          {/* Mobile Vertical Step List (Stacked) */}
+          <div className="block sm:hidden bg-white rounded-3xl p-5 border border-gray-100 shadow-sm">
+            <div className="relative pl-6 space-y-5">
+              {/* Vertical connecting line */}
+              <div className="absolute left-[11px] top-3 bottom-3 w-0.5 bg-gray-200 z-0"></div>
+              <div 
+                className="absolute left-[11px] top-3 w-0.5 bg-emerald-500 z-0 transition-all"
+                style={{ height: `${((completedCount) / (steps.length - 1)) * 100}%` }}
+              ></div>
 
-              <div className="flex-1 mx-6 max-w-lg bg-gray-100 h-2 rounded-full overflow-hidden relative">
+              {steps.map((step) => (
                 <div 
-                  className="bg-indigo-500 h-full rounded-full transition-all duration-150 ease-out"
-                  style={{ width: `${Math.max(20, scrollProgress)}%` }}
-                ></div>
-              </div>
+                  key={step.id}
+                  onClick={() => step.status !== 'terkunci' && navigate('/materi/detail')}
+                  className={`relative z-10 p-4 rounded-2xl border transition-all ${
+                    step.status === 'selesai'
+                      ? 'bg-white border-gray-100 shadow-xs'
+                      : step.status === 'sedang'
+                      ? 'bg-white border-indigo-200 shadow-md ring-2 ring-indigo-500/10'
+                      : 'bg-gray-50/80 border-gray-100 opacity-75'
+                  }`}
+                >
+                  {/* Node Circle */}
+                  <div className="absolute -left-[31px] top-4 z-20">
+                    {step.status === 'selesai' && (
+                      <div className="w-5 h-5 rounded-full bg-white border-2 border-emerald-500 flex items-center justify-center">
+                        <span className="w-1.5 h-1.5 rounded-full bg-emerald-500"></span>
+                      </div>
+                    )}
+                    {step.status === 'sedang' && (
+                      <div className="w-6 h-6 rounded-full bg-white border-2 border-indigo-600 flex items-center justify-center shadow-xs">
+                        <span className="w-2 h-2 rounded-full bg-indigo-600"></span>
+                      </div>
+                    )}
+                    {step.status === 'terkunci' && (
+                      <div className="w-5 h-5 rounded-full bg-white border-2 border-gray-300 flex items-center justify-center">
+                        <span className="w-1 h-1 rounded-full bg-gray-300"></span>
+                      </div>
+                    )}
+                  </div>
 
-              <button 
-                onClick={() => scroll('right')} 
-                className="p-2 rounded-full text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 transition-colors cursor-pointer"
-                title="Geser Kanan"
-              >
-                <ChevronRight size={20} />
-              </button>
+                  <div className="flex items-center justify-between mb-1">
+                    <span className="text-[10px] font-bold text-emerald-600 bg-emerald-50 px-2 py-0.5 rounded-md">
+                      {step.id}
+                    </span>
+                    {step.status === 'terkunci' && <Lock size={12} className="text-gray-400" />}
+                  </div>
+                  <h3 className="font-bold text-gray-900 text-sm mb-1">{step.title}</h3>
+                  <p className="text-xs text-gray-400 mb-2">{step.description}</p>
+                  
+                  <div className="pt-2 border-t border-gray-100 flex items-center">
+                    {step.status === 'selesai' && (
+                      <span className="bg-emerald-50 text-emerald-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <Check size={10} strokeWidth={3} /> Selesai
+                      </span>
+                    )}
+                    {step.status === 'sedang' && (
+                      <span className="bg-indigo-50 text-indigo-600 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <Play size={8} className="fill-indigo-600" /> Sedang dipelajari
+                      </span>
+                    )}
+                    {step.status === 'terkunci' && (
+                      <span className="bg-gray-100 text-gray-400 text-[10px] font-bold px-2 py-0.5 rounded-md flex items-center gap-1">
+                        <Lock size={10} /> Terkunci
+                      </span>
+                    )}
+                  </div>
+                </div>
+              ))}
             </div>
-
           </div>
         </div>
 
